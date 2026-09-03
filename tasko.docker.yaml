@@ -1,0 +1,15 @@
+# Config used by the `core` service in docker/docker-compose.yml.
+server:
+  host: 0.0.0.0
+  port: 8000
+
+database:
+  url: postgresql+asyncpg://tasko:tasko@postgres:5432/tasko
+
+broker:
+  adapter: redis
+  options:
+    url: redis://redis:6379/0
+
+retention:
+  finished_tasks: 7d

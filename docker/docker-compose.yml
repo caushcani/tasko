@@ -1,0 +1,59 @@
+name: tasko
+
+# Run from the repo root:
+#   docker compose -f docker/docker-compose.yml up --build
+#
+# Published to the host: core 8100, web 3100, postgres 5434 (for DBeaver etc).
+# redis stays on the compose network only. Container-internal ports are
+# standard, so the service-to-service URLs below stay clean; the host offsets
+# just avoid colliding with anything already bound.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: tasko
+      POSTGRES_PASSWORD: tasko
+      POSTGRES_DB: tasko
+    ports:
+      - "5434:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tasko"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+
+  core:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.core
+    environment:
+      TASKO_CONFIG: /app/tasko.docker.yaml
+    volumes:
+      - ../tasko.docker.yaml:/app/tasko.docker.yaml:ro
+    ports:
+      - "8100:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  web:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.web
+    environment:
+      TASKO_CORE_URL: http://core:8000
+    ports:
+      - "3100:3000"
+    depends_on:
+      - core
+
+volumes:
+  pgdata:

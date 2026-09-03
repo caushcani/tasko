@@ -1,0 +1,26 @@
+# Tasko server configuration. Loaded by tasko_core.infrastructure.config.
+# Copy to tasko.local.yaml for machine-specific overrides (gitignored).
+
+server:
+  host: 0.0.0.0
+  port: 8000
+
+database:
+  # SQLAlchemy URL. docker-compose provides postgres; default here is local sqlite.
+  url: sqlite+aiosqlite:///./tasko.db
+
+# Which registered broker adapter to use, and its connection settings.
+# Adapters are discovered via the "tasko.adapters" entry point group.
+broker:
+  adapter: redis
+  options:
+    url: redis://localhost:6379/0
+
+workers:
+  # A worker whose last middleware heartbeat is older than this is treated
+  # as offline and drops out of GET /api/workers.
+  ttl_seconds: 30
+
+retention:
+  # How long finished task records are kept before pruning.
+  finished_tasks: 7d

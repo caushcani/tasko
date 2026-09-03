@@ -1,0 +1,54 @@
+[project]
+name = "tasko-workspace"
+version = "0.1.0"
+description = "Tasko — a broker-agnostic observability dashboard for Taskiq fleets"
+requires-python = ">=3.11"
+# v1 packages — `uv sync` installs these (and their workspace deps) editable.
+# The rabbitmq / nats stubs are left out on purpose; add them here when real.
+dependencies = [
+    "tasko-core",
+    "tasko-middleware",
+    "tasko-redis",
+]
+
+[project.optional-dependencies]
+# `uv sync --extra postgres` — pulls the async Postgres driver for the
+# docker-compose deployment (sqlite needs nothing extra).
+postgres = ["tasko-core[postgres]"]
+
+[tool.uv]
+# The workspace root is just a container — not an installable package.
+package = false
+
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[tool.uv.sources]
+tasko-core = { workspace = true }
+tasko-middleware = { workspace = true }
+tasko-redis = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.6",
+    "httpx>=0.27",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = [
+    "B008",  # FastAPI Depends() in defaults is idiomatic
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/*" = ["S101"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["packages"]

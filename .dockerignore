@@ -1,0 +1,15 @@
+# Keep build contexts small and reproducible.
+**/.venv
+**/node_modules
+**/.next
+**/.pytest_cache
+**/.ruff_cache
+**/__pycache__
+**/*.pyc
+.git
+.gitignore
+*.db
+*.sqlite3
+web/out
+docs/
+**/.DS_Store

@@ -1,0 +1,32 @@
+[project]
+name = "tasko-core"
+version = "0.1.0"
+description = "Tasko server: ingest API, REST/WS, broker adapter registry"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "pyyaml>=6",
+    "sqlalchemy[asyncio]>=2.0",
+    "aiosqlite>=0.20",
+    "websockets>=12",
+]
+
+[project.optional-dependencies]
+postgres = ["asyncpg>=0.29"]
+
+[project.scripts]
+tasko-core = "tasko_core.interfaces.main:run"
+
+# Broker adapters are discovered from this entry point group. tasko-core ships
+# no adapters itself; each adapter package contributes one.
+[project.entry-points."tasko.adapters"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tasko_core"]
