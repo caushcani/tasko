@@ -1,0 +1,27 @@
+name: tasko
+
+# Production-style overlay for docker/docker-compose.yml: immutable images,
+# no source bind-mounts, restart policy.
+#
+#   docker compose -f docker/docker-compose.yml -f docker/docker-compose.prod.yml up --build -d
+#
+# This is a reference for self-hosters — a real deployment would supply its own
+# database URL, secrets, and TLS termination rather than the compose defaults.
+
+services:
+  core:
+    build:
+      target: prod
+    # !override replaces the base list instead of merging — drops ../packages.
+    volumes: !override
+      - ../tasko.docker.yaml:/app/tasko.docker.yaml:ro
+    restart: unless-stopped
+
+  web:
+    build:
+      target: run
+    volumes: !override []
+    environment: !override
+      TASKO_CORE_URL: http://core:8000
+      NODE_ENV: production
+    restart: unless-stopped
