@@ -11,6 +11,13 @@ COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./
 RUN --mount=type=cache,target=/pnpm/store \
     pnpm install --frozen-lockfile
 
+# --- dev: Next dev server with HMR; compose bind-mounts ../web over /app
+# and keeps this stage's node_modules via an anonymous volume ---
+FROM deps AS dev
+ENV NEXT_TELEMETRY_DISABLED=1
+EXPOSE 3000
+CMD ["pnpm", "dev", "-H", "0.0.0.0", "-p", "3000"]
+
 FROM base AS build
 COPY --from=deps /app/node_modules ./node_modules
 COPY web/ ./

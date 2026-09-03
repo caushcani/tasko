@@ -1,12 +1,15 @@
 name: tasko
 
-# Run from the repo root:
+# Local development stack — source is bind-mounted and both apps hot-reload.
 #   docker compose -f docker/docker-compose.yml up --build
+#
+# For an immutable, production-style stack (built images, no mounts), add the
+# prod overlay:
+#   docker compose -f docker/docker-compose.yml -f docker/docker-compose.prod.yml up --build -d
 #
 # Published to the host: core 8100, web 3100, postgres 5434 (for DBeaver etc).
 # redis stays on the compose network only. Container-internal ports are
-# standard, so the service-to-service URLs below stay clean; the host offsets
-# just avoid colliding with anything already bound.
+# standard, so the service-to-service URLs below stay clean.
 
 services:
   postgres:
@@ -32,10 +35,12 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.core
+      target: dev
     environment:
       TASKO_CONFIG: /app/tasko.docker.yaml
     volumes:
       - ../tasko.docker.yaml:/app/tasko.docker.yaml:ro
+      - ../packages:/app/packages          # edit Python → uvicorn --reload
     ports:
       - "8100:8000"
     depends_on:
@@ -48,8 +53,15 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.web
+      target: dev
     environment:
       TASKO_CORE_URL: http://core:8000
+      NEXT_TELEMETRY_DISABLED: "1"
+      WATCHPACK_POLLING: "true"             # reliable file watching on bind mounts
+    volumes:
+      - ../web:/app                          # edit web/ → Next HMR
+      - /app/node_modules                    # keep the image's install
+      - /app/.next                           # keep build cache in-container
     ports:
       - "3100:3000"
     depends_on:
