@@ -3,8 +3,8 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Taskiq — Background task monitoring',
-  description: 'Observe Taskiq workers, queues, throughput, and task health in one focused operations console.',
+  title: 'Tasko — Taskiq fleet monitoring',
+  description: 'A self-hosted dashboard for Taskiq workers, queues, throughput, and task health.',
   generator: 'v0.app',
   icons: {
     icon: [
