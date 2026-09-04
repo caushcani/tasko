@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from tasko_core.infrastructure.database.base import Base
+from tasko_core.modules.common.pagination import ListParams
 from tasko_core.modules.tasks import service
 from tasko_core.modules.tasks.enums import TaskState
 from tasko_core.modules.tasks.models import TaskRecord  # noqa: F401 - registers the table
@@ -43,8 +44,9 @@ async def test_apply_event_upserts_and_advances_state(session):
     assert rec.queued_at is not None and rec.finished_at is not None
 
 
-async def test_query_tasks_filters_by_state(session):
+async def test_list_tasks_filters_by_state(session):
     await service.apply_event(session, _event(task_id="ok", state=TaskState.SUCCESS))
     await service.apply_event(session, _event(task_id="bad", state=TaskState.FAILURE))
-    failures = await service.query_tasks(session, state=TaskState.FAILURE)
-    assert [r.id for r in failures] == ["bad"]
+    rows, total = await service.list_tasks(session, ListParams(), state=TaskState.FAILURE)
+    assert [r.id for r in rows] == ["bad"]
+    assert total == 1

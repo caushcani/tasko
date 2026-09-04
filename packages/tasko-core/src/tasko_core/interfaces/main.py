@@ -5,12 +5,18 @@ from __future__ import annotations
 import contextlib
 from collections.abc import AsyncIterator
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 
 from tasko_core import __version__
 from tasko_core.adapters import iter_adapters, load_adapter
 from tasko_core.infrastructure.config import Config, load_config
-from tasko_core.infrastructure.database import create_all, dispose_engine, init_engine
+from tasko_core.infrastructure.database import (
+    BadListField,
+    create_all,
+    dispose_engine,
+    init_engine,
+)
 from tasko_core.interfaces.api.v1 import api_router, ws_router
 
 
@@ -39,6 +45,10 @@ def create_app(config: Config | None = None) -> FastAPI:
 
     app.include_router(api_router)
     app.include_router(ws_router)
+
+    @app.exception_handler(BadListField)
+    async def _bad_list_field(request: Request, exc: BadListField) -> JSONResponse:
+        return JSONResponse(status_code=422, content={"detail": str(exc)})
 
     @app.get("/healthz")
     async def healthz() -> dict[str, object]:
