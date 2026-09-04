@@ -3,8 +3,20 @@
 // FilterBar to the URL with `useQueryStates(Object.fromEntries(fields.map((f)
 // => [f.field, parserFor(f)])))` and gets shareable/back-button-safe filter
 // state for free.
+//
+// Imports from "nuqs/server", not "nuqs": this file is used from both client
+// components (tasks-table.tsx) and server components/loaders
+// (search-params.ts). The root "nuqs" package is client-only (it also ships
+// the useQueryState(s) hooks); its parser objects break with "X.withDefault
+// is not a function" when evaluated in a server bundle. "nuqs/server" has no
+// "use client" boundary and is safe on both sides.
 
-import { parseAsArrayOf, parseAsJson, parseAsString, type SingleParserBuilder } from "nuqs"
+import {
+  parseAsArrayOf,
+  parseAsJson,
+  parseAsString,
+  type SingleParserBuilder,
+} from "nuqs/server"
 import type { DateRangeValue, FilterField, NumberRangeValue } from "./filter-types"
 
 // Each branch's concrete type differs (string vs string[] vs an object) — the

@@ -1,5 +1,6 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
+import { DashboardShell } from '@/components/shell/DashboardShell'
 import { Providers } from './providers'
 import './globals.css'
 
@@ -42,7 +43,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="bg-background">
       <body className="antialiased">
-        <Providers>{children}</Providers>
+        <Providers>
+          <DashboardShell>{children}</DashboardShell>
+        </Providers>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>

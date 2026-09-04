@@ -20,6 +20,10 @@ services:
   web:
     build:
       target: run
+      # Baked into the client bundle at build time — override for a real
+      # deployment: `... build --build-arg NEXT_PUBLIC_TASKO_CORE_URL=https://your-host`
+      args:
+        NEXT_PUBLIC_TASKO_CORE_URL: http://localhost:8100
     volumes: !override []
     environment: !override
       TASKO_CORE_URL: http://core:8000
