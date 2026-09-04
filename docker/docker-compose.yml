@@ -55,7 +55,8 @@ services:
       dockerfile: docker/Dockerfile.web
       target: dev
     environment:
-      TASKO_CORE_URL: http://core:8000
+      TASKO_CORE_URL: http://core:8000            # server-side (SSR prefetch): internal network
+      NEXT_PUBLIC_TASKO_CORE_URL: http://localhost:8100  # client-side (browser): the published port
       NEXT_TELEMETRY_DISABLED: "1"
       WATCHPACK_POLLING: "true"             # reliable file watching on bind mounts
     volumes:

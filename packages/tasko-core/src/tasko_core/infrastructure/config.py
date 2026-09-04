@@ -20,6 +20,15 @@ _CANDIDATES = ("tasko.local.yaml", "tasko.yaml")
 class ServerConfig(BaseModel):
     host: str = "0.0.0.0"
     port: int = 8000
+    #: Browser origins the dashboard is served from — needed because web/ and
+    #: core run on different ports/hosts, so the browser's own fetch() calls
+    #: (as opposed to Next's server-side prefetch) are cross-origin.
+    cors_origins: list[str] = Field(
+        default_factory=lambda: [
+            "http://localhost:3000",  # `pnpm dev` / `pnpm start` run directly
+            "http://localhost:3100",  # docker-compose dev stack's published port
+        ]
+    )
 
 
 class DatabaseConfig(BaseModel):

@@ -6,6 +6,7 @@ import contextlib
 from collections.abc import AsyncIterator
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from tasko_core import __version__
@@ -42,6 +43,16 @@ def create_app(config: Config | None = None) -> FastAPI:
     config = config or load_config()
     app = FastAPI(title="Tasko", version=__version__, lifespan=lifespan)
     app.state.config = config
+
+    # web/ and core run on different origins (different ports, at least in
+    # dev) — the dashboard's browser-side fetches need this; SSR prefetches
+    # are server-to-server and unaffected.
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=config.server.cors_origins,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     app.include_router(api_router)
     app.include_router(ws_router)
