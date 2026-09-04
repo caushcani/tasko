@@ -13,11 +13,25 @@
   --color-muted-foreground: var(--muted-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-destructive: var(--destructive);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
   --radius-lg: .75rem;
   --radius-md: .5rem;
 }
 
-:root { color-scheme: dark; --background: #0b1014; --foreground: #edf4f4; --card: #111a20; --card-foreground: #edf4f4; --border: #233039; --muted-foreground: #81919a; --primary: #55d6c2; --primary-foreground: #071311; --radius: .75rem; }
+/* Base tokens (--background, --card, ...) come from the existing dashboard
+   design; --secondary/--muted/--accent/--popover/--input/--ring/--destructive
+   below extend that same dark-teal palette for the shadcn primitives
+   (Table/Input/Select) added for the list-table engine. */
+:root { color-scheme: dark; --background: #0b1014; --foreground: #edf4f4; --card: #111a20; --card-foreground: #edf4f4; --border: #233039; --muted-foreground: #81919a; --primary: #55d6c2; --primary-foreground: #071311; --radius: .75rem; --secondary: #17232a; --secondary-foreground: #8eabb0; --muted: #131f25; --accent: #17252b; --accent-foreground: #e5f2f1; --popover: #111a20; --popover-foreground: #edf4f4; --destructive: #e4877f; --input: #233039; --ring: #55d6c2; }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--background); color: var(--foreground); font-family: var(--font-sans), sans-serif; }
 button { font: inherit; cursor: pointer; }
