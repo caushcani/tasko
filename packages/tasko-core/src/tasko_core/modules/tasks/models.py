@@ -5,10 +5,12 @@ from __future__ import annotations
 from datetime import datetime
 
 from sqlalchemy import JSON, DateTime, Enum, Index, Integer, String, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from tasko_core.infrastructure.database.base import Base, utcnow
+from tasko_core.infrastructure.database.query import ListSpec, RelationSpec
 from tasko_core.modules.tasks.enums import TaskState
+from tasko_core.modules.workers.models import WorkerRecord
 
 
 class TaskRecord(Base):
@@ -35,4 +37,45 @@ class TaskRecord(Base):
         DateTime(timezone=True), default=utcnow, onupdate=utcnow
     )
 
+    # worker_id is a plain string (a worker may never send a heartbeat), so this
+    # is a constraint-free, read-only relationship — enough to join/sort/filter
+    # on worker columns, never blocks task ingest.
+    worker: Mapped[WorkerRecord | None] = relationship(
+        WorkerRecord,
+        primaryjoin="foreign(TaskRecord.worker_id) == WorkerRecord.id",
+        viewonly=True,
+        lazy="noload",
+    )
+
     __table_args__ = (Index("ix_tasks_queue_state", "queue", "state"),)
+
+
+#: What the ``GET /api/tasks`` list endpoint allows. Declared next to the model.
+TASK_LIST_SPEC = ListSpec(
+    model=TaskRecord,
+    sortable_fields=frozenset(
+        {
+            "id",
+            "name",
+            "queue",
+            "state",
+            "execution_ms",
+            "retries",
+            "queued_at",
+            "started_at",
+            "finished_at",
+            "updated_at",
+        }
+    ),
+    filterable_fields=frozenset({"name", "queue", "state", "worker_id"}),
+    searchable_fields=("id", "name", "traceback"),
+    default_sort=("updated_at", "desc"),
+    relations={
+        "worker": RelationSpec(
+            attr="worker",
+            model=WorkerRecord,
+            sortable_fields=frozenset({"last_heartbeat_at", "active_tasks"}),
+            filterable_fields=frozenset({"id"}),
+        ),
+    },
+)

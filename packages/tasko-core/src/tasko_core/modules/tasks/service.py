@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Literal
-
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from tasko_core.infrastructure.database import run_list_query
+from tasko_core.modules.common.pagination import ListParams
 from tasko_core.modules.tasks.enums import TaskState
-from tasko_core.modules.tasks.models import TaskRecord
+from tasko_core.modules.tasks.models import TASK_LIST_SPEC, TaskRecord
 from tasko_core.modules.tasks.schemas import TaskEvent
 
 _TERMINAL = {TaskState.SUCCESS, TaskState.FAILURE}
@@ -56,29 +55,30 @@ async def apply_event(session: AsyncSession, event: TaskEvent) -> TaskRecord:
     return record
 
 
-async def query_tasks(
+async def list_tasks(
     session: AsyncSession,
+    params: ListParams,
     *,
     state: TaskState | None = None,
     queue: str | None = None,
-    name: str | None = None,
-    order: Literal["recent", "slowest"] = "recent",
-    limit: int = 50,
-    offset: int = 0,
-) -> list[TaskRecord]:
-    stmt = select(TaskRecord)
-    if state is not None:
-        stmt = stmt.where(TaskRecord.state == state)
-    if queue is not None:
-        stmt = stmt.where(TaskRecord.queue == queue)
-    if name is not None:
-        stmt = stmt.where(TaskRecord.name == name)
-    if order == "slowest":
-        stmt = stmt.order_by(TaskRecord.execution_ms.desc().nullslast())
-    else:
-        stmt = stmt.order_by(TaskRecord.updated_at.desc())
-    stmt = stmt.limit(limit).offset(offset)
-    return list((await session.scalars(stmt)).all())
+    worker_id: str | None = None,
+) -> tuple[list[TaskRecord], int]:
+    """Filtered / sorted / searched / paginated page of tasks, plus total count."""
+    filters = {
+        k: v
+        for k, v in {"state": state, "queue": queue, "worker_id": worker_id}.items()
+        if v is not None
+    }
+    return await run_list_query(
+        session,
+        TASK_LIST_SPEC,
+        offset=params.offset,
+        limit=params.limit,
+        sort_columns=params.sort_columns,
+        sort_orders=params.sort_orders,
+        search=params.search,
+        filters=filters,
+    )
 
 
 async def get_task(session: AsyncSession, task_id: str) -> TaskRecord | None:

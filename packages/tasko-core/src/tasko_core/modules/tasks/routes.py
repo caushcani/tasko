@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Literal
-
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException
 
 from tasko_core.infrastructure.database import SessionDep
 from tasko_core.infrastructure.realtime import hub
+from tasko_core.modules.common.pagination import ListParamsDep, PaginatedResponse
 from tasko_core.modules.tasks import service
 from tasko_core.modules.tasks.enums import TaskState
 from tasko_core.modules.tasks.schemas import TaskDetailOut, TaskEvent, TaskOut
@@ -23,24 +22,22 @@ async def ingest_event(event: TaskEvent, session: SessionDep) -> dict[str, str]:
     return {"status": "accepted"}
 
 
-@router.get("/tasks", response_model=list[TaskOut])
+@router.get("/tasks", response_model=PaginatedResponse[TaskOut])
 async def list_tasks(
+    params: ListParamsDep,
     session: SessionDep,
     state: TaskState | None = None,
     queue: str | None = None,
-    name: str | None = None,
-    order: Literal["recent", "slowest"] = "recent",
-    limit: int = Query(50, le=500),
-    offset: int = 0,
-) -> list:
-    return await service.query_tasks(
-        session,
-        state=state,
-        queue=queue,
-        name=name,
-        order=order,
-        limit=limit,
-        offset=offset,
+    worker_id: str | None = None,
+) -> PaginatedResponse[TaskOut]:
+    rows, total = await service.list_tasks(
+        session, params, state=state, queue=queue, worker_id=worker_id
+    )
+    return PaginatedResponse[TaskOut](
+        items=[TaskOut.model_validate(r) for r in rows],
+        total_count=total,
+        offset=params.offset,
+        limit=params.limit,
     )
 
 
