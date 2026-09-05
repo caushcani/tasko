@@ -46,7 +46,7 @@ them, and serves a live REST/WebSocket API consumed by a Next.js dashboard.
 # install uv: https://docs.astral.sh/uv/getting-started/installation/
 uv sync                       # one venv, one lockfile, whole workspace
 uv run tasko-core             # start the server on :8000
-uv run tasko-seed --reset     # (re)populate sample workers + tasks for local dev
+uv run tasko-seed             # populate sample workers + tasks for local dev
 uv run pytest                 # run the test suite
 uv run ruff check .           # lint
 ```
@@ -72,7 +72,7 @@ docker compose -f docker/docker-compose.yml up --build
 docker compose -f docker/docker-compose.yml -f docker/docker-compose.prod.yml up --build -d
 
 # sample data for the dashboard
-docker compose -f docker/docker-compose.yml exec core tasko-seed --reset
+docker compose -f docker/docker-compose.yml exec core tasko-seed
 ```
 
 After changing a dependency (`package.json` / `pyproject.toml`), rebuild:

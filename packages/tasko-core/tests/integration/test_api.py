@@ -87,12 +87,39 @@ async def test_queues_from_adapter(client):
 
 
 async def test_worker_heartbeat_then_list(client):
-    assert (await client.get("/api/workers")).json() == []
+    body = (await client.get("/api/workers")).json()
+    assert body["items"] == [] and body["total_count"] == 0
 
     hb = {"worker_id": "worker-7", "queues": ["emails", "default"], "active_tasks": 2}
     assert (await client.post("/api/workers/heartbeat", json=hb)).status_code == 202
 
-    workers = (await client.get("/api/workers")).json()
-    assert [w["id"] for w in workers] == ["worker-7"]
-    assert workers[0]["active_tasks"] == 2
-    assert workers[0]["queues"] == ["emails", "default"]
+    body = (await client.get("/api/workers")).json()
+    assert [w["id"] for w in body["items"]] == ["worker-7"]
+    assert body["items"][0]["active_tasks"] == 2
+    assert body["items"][0]["queues"] == ["emails", "default"]
+
+
+async def test_workers_filter_sort_and_detail(client):
+    await client.post(
+        "/api/workers/heartbeat",
+        json={"worker_id": "worker-a", "queues": ["emails"], "active_tasks": 1},
+    )
+    await client.post(
+        "/api/workers/heartbeat",
+        json={"worker_id": "worker-b", "queues": ["reports"], "active_tasks": 5},
+    )
+
+    # sort by active_tasks desc
+    body = (await client.get("/api/workers", params={"sort": "-active_tasks"})).json()
+    assert [w["id"] for w in body["items"]] == ["worker-b", "worker-a"]
+
+    # filter by exact id
+    body = (await client.get("/api/workers", params={"worker_id": "worker-a"})).json()
+    assert [w["id"] for w in body["items"]] == ["worker-a"]
+
+    # detail endpoint
+    detail = await client.get("/api/workers/worker-b")
+    assert detail.status_code == 200
+    assert detail.json()["active_tasks"] == 5
+
+    assert (await client.get("/api/workers/does-not-exist")).status_code == 404

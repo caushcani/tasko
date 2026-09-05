@@ -11,7 +11,7 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { label: 'Overview', icon: LayoutDashboard, href: '/' },
   { label: 'Tasks', icon: Boxes, href: '/tasks' },
-  { label: 'Workers', icon: Server, href: null },
+  { label: 'Workers', icon: Server, href: '/workers' },
   { label: 'Queues', icon: Layers3, href: null },
   { label: 'Schedules', icon: TimerReset, href: null },
 ]
@@ -20,6 +20,8 @@ export function titleFor(pathname: string): string {
   if (pathname === '/') return 'Overview'
   if (pathname === '/tasks') return 'Tasks'
   if (pathname.startsWith('/tasks/')) return 'Task detail'
+  if (pathname === '/workers') return 'Workers'
+  if (pathname.startsWith('/workers/')) return 'Worker detail'
   return 'Tasko'
 }
 

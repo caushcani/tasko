@@ -2,7 +2,7 @@ import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { fetchTaskOrNull } from '../fetch-tasks'
-import { formatAbsolute, formatDuration, formatRelative } from '../format'
+import { formatAbsolute, formatDuration, formatRelative } from '@/lib/format'
 import { StatusBadge } from '../status-badge'
 
 interface TaskDetailPageProps {
@@ -15,7 +15,7 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
   if (!task) notFound()
 
   return (
-    <>
+    <div className="flex flex-col gap-[18px]">
       <div className="page-heading">
         <div>
           <Link
@@ -67,7 +67,7 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
       </div>
 
       {task.result !== null && <JsonPanel title="Result" value={task.result} />}
-    </>
+    </div>
   )
 }
 

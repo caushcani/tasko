@@ -18,8 +18,11 @@ broker:
 
 workers:
   # A worker whose last middleware heartbeat is older than this is treated
-  # as offline and drops out of GET /api/workers.
-  ttl_seconds: 30
+  # as offline and drops out of GET /api/workers. Generous here on purpose —
+  # this is the local-dev config and nothing keeps heartbeating between
+  # manual test runs; a real deployment should tune this down (30-60s is
+  # reasonable given tasko-middleware's default 10s heartbeat interval).
+  ttl_seconds: 3600
 
 retention:
   # How long finished task records are kept before pruning.
