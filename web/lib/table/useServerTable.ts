@@ -42,7 +42,7 @@ export function useServerTable<T, F extends Record<string, unknown> = Record<str
   fetcher,
   columns,
   extraFilters,
-  defaultLimit = 50,
+  defaultLimit = 15,
 }: UseServerTableOptions<T, F>) {
   const [offset, setOffset] = useQueryState("offset", parseAsInteger.withDefault(0))
   const [limit, setLimit] = useQueryState("limit", parseAsInteger.withDefault(defaultLimit))

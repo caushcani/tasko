@@ -112,29 +112,31 @@ export function DataTable<T>({
 
       <div className="flex items-center justify-between text-sm text-muted-foreground">
         <span>{totalCount} total</span>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            aria-label="Previous page"
-            className="inline-flex items-center rounded-md border border-border px-2 py-1 disabled:opacity-40"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
-            <ChevronLeft className="size-4" />
-          </button>
-          <span>
-            Page {pageCount === 0 ? 0 : pageIndex + 1} of {pageCount}
-          </span>
-          <button
-            type="button"
-            aria-label="Next page"
-            className="inline-flex items-center rounded-md border border-border px-2 py-1 disabled:opacity-40"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
-            <ChevronRight className="size-4" />
-          </button>
-        </div>
+        {pageCount > 1 && (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              aria-label="Previous page"
+              className="inline-flex items-center rounded-md border border-border px-2 py-1 disabled:opacity-40"
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+            >
+              <ChevronLeft className="size-4" />
+            </button>
+            <span>
+              Page {pageIndex + 1} of {pageCount}
+            </span>
+            <button
+              type="button"
+              aria-label="Next page"
+              className="inline-flex items-center rounded-md border border-border px-2 py-1 disabled:opacity-40"
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+            >
+              <ChevronRight className="size-4" />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

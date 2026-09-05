@@ -19,7 +19,7 @@ T = TypeVar("T")
 @dataclass
 class ListParams:
     offset: int = 0
-    limit: int = 50
+    limit: int = 15
     search: str | None = None
     sort_columns: list[str] = field(default_factory=list)
     sort_orders: list[str] = field(default_factory=list)
@@ -43,7 +43,7 @@ def _parse_sort(sort: str | None) -> tuple[list[str], list[str]]:
 
 def list_params(
     offset: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=200),
+    limit: int = Query(15, ge=1, le=200),
     sort: str | None = Query(
         None,
         description="comma-separated fields, '-' prefix for descending, e.g. '-updated_at,name'",

@@ -19,6 +19,7 @@ postgres = ["asyncpg>=0.29"]
 
 [project.scripts]
 tasko-core = "tasko_core.interfaces.main:run"
+tasko-seed = "tasko_core.scripts.seed:run"
 
 # Broker adapters are discovered from this entry point group. tasko-core ships
 # no adapters itself; each adapter package contributes one.
