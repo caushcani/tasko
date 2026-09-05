@@ -1,4 +1,5 @@
-// Shared by columns.tsx (the list) and [id]/page.tsx (the detail view).
+// Shared display formatters — used by every module's columns/detail views
+// (tasks, workers, ...), not just one.
 
 export function formatDuration(ms: number | null): string {
   if (ms == null) return '—'

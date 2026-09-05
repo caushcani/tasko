@@ -3,7 +3,7 @@
 import type { ColumnDef } from '@tanstack/react-table'
 import { AlertCircle, Clock3 } from 'lucide-react'
 import Link from 'next/link'
-import { formatDuration, formatRelative } from './format'
+import { formatDuration, formatRelative } from '@/lib/format'
 import { StatusBadge } from './status-badge'
 import type { TaskOut, TaskState } from './types'
 

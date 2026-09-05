@@ -107,8 +107,15 @@ async def run_list_query(
     sort_orders: Sequence[str] = (),
     search: str | None = None,
     filters: Mapping[str, Any] | None = None,
+    extra_where: Sequence[ColumnElement[bool]] = (),
 ) -> tuple[list[Any], int]:
-    """Return ``(page_rows, total_count)`` for ``spec`` under the given params."""
+    """Return ``(page_rows, total_count)`` for ``spec`` under the given params.
+
+    ``extra_where`` is for an always-on clause a *service* needs (e.g. "only
+    workers heartbeated within the TTL") — not user-facing, so it bypasses
+    ``filterable_fields`` entirely. It's not part of the filter DSL; callers
+    build real SQLAlchemy comparisons themselves.
+    """
     filters = filters or {}
 
     resolved_filters: list[tuple[ColumnElement[Any], Any]] = []
@@ -146,6 +153,7 @@ async def run_list_query(
         clause = build_search_clause(search_cols, search or "")
         if clause is not None:
             where.append(clause)
+    where.extend(extra_where)
     if where:
         stmt = stmt.where(*where)
 

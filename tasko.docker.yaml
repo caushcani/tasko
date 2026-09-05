@@ -11,5 +11,12 @@ broker:
   options:
     url: redis://redis:6379/0
 
+workers:
+  # Generous on purpose — this file is the local docker-compose dev config
+  # (see docker/docker-compose.yml), where nothing keeps heartbeating
+  # between manual test runs. A real deployment should tune this down;
+  # 30-60s is reasonable given tasko-middleware's default 10s interval.
+  ttl_seconds: 3600
+
 retention:
   finished_tasks: 7d

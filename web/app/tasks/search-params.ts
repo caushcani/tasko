@@ -24,7 +24,7 @@ const filterParsers: Record<string, SingleParserBuilder<any>> = Object.fromEntri
 
 export const tasksSearchParams = {
   offset: parseAsInteger.withDefault(0),
-  limit: parseAsInteger.withDefault(50),
+  limit: parseAsInteger.withDefault(15),
   sort: parseAsString,
   q: parseAsString.withDefault(''),
   ...filterParsers,
