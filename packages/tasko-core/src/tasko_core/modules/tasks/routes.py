@@ -26,12 +26,13 @@ async def ingest_event(event: TaskEvent, session: SessionDep) -> dict[str, str]:
 async def list_tasks(
     params: ListParamsDep,
     session: SessionDep,
+    name: str | None = None,
     state: TaskState | None = None,
     queue: str | None = None,
     worker_id: str | None = None,
 ) -> PaginatedResponse[TaskOut]:
     rows, total = await service.list_tasks(
-        session, params, state=state, queue=queue, worker_id=worker_id
+        session, params, name=name, state=state, queue=queue, worker_id=worker_id
     )
     return PaginatedResponse[TaskOut](
         items=[TaskOut.model_validate(r) for r in rows],

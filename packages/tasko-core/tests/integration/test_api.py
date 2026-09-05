@@ -57,6 +57,12 @@ async def test_list_tasks_filter_sort_search_paginate(client):
     assert {t["id"] for t in body["items"]} == {"a", "b"}
     assert body["total_count"] == 2
 
+    # name filter is exact-match (unlike `q`, which is substring)
+    body = (await client.get("/api/tasks", params={"name": "build_report"})).json()
+    assert [t["id"] for t in body["items"]] == ["c"]
+    body = (await client.get("/api/tasks", params={"name": "build_rep"})).json()
+    assert body["total_count"] == 0
+
     # sort: slowest first
     body = (await client.get("/api/tasks", params={"sort": "-execution_ms"})).json()
     assert [t["id"] for t in body["items"]] == ["b", "c", "a"]

@@ -59,6 +59,7 @@ async def list_tasks(
     session: AsyncSession,
     params: ListParams,
     *,
+    name: str | None = None,
     state: TaskState | None = None,
     queue: str | None = None,
     worker_id: str | None = None,
@@ -66,7 +67,12 @@ async def list_tasks(
     """Filtered / sorted / searched / paginated page of tasks, plus total count."""
     filters = {
         k: v
-        for k, v in {"state": state, "queue": queue, "worker_id": worker_id}.items()
+        for k, v in {
+            "name": name,
+            "state": state,
+            "queue": queue,
+            "worker_id": worker_id,
+        }.items()
         if v is not None
     }
     return await run_list_query(
