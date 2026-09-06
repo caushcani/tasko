@@ -7,7 +7,6 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'Tasko — Taskiq fleet monitoring',
   description: 'A self-hosted dashboard for Taskiq workers, queues, throughput, and task health.',
-  generator: 'v0.app',
   icons: {
     icon: [
       {

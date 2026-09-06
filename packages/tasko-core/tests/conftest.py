@@ -15,7 +15,7 @@ class StubAdapter(BrokerAdapter):
     name = "stub"
 
     async def list_queues(self) -> list[QueueStats]:
-        return [QueueStats(name="default", depth=3)]
+        return [QueueStats(name="default", depth=3), QueueStats(name="emails", depth=0)]
 
 
 @pytest.fixture

@@ -1,11 +1,13 @@
-"""Seed tasko-core with sample workers and tasks for local development.
+"""Seed tasko-core with sample data for local development.
 
     uv run tasko-seed            # upsert the sample rows
-    uv run tasko-seed --reset    # wipe tasks + workers first, then seed
+    uv run tasko-seed --reset    # wipe first, then seed
 
-Writes against whatever ``tasko.yaml`` (or ``$TASKO_CONFIG``) points at —
-same resolution as the server itself. Idempotent: every row uses a fixed id,
-so re-running updates them in place instead of piling up duplicates.
+Writes tasks + workers into whatever ``tasko.yaml`` (or ``$TASKO_CONFIG``)
+points at, and — when the broker is Redis — pushes dummy payloads onto the
+list keys so ``GET /api/queues`` shows depth. Idempotent: fixed ids for the
+DB rows, and queue keys are topped up to a target depth rather than appended
+to blindly.
 """
 
 from __future__ import annotations
@@ -17,7 +19,7 @@ from typing import Any
 
 from sqlalchemy import delete
 
-from tasko_core.infrastructure.config import load_config
+from tasko_core.infrastructure.config import Config, load_config
 from tasko_core.infrastructure.database.session import (
     create_all,
     dispose_engine,
@@ -29,6 +31,15 @@ from tasko_core.modules.tasks.models import TaskRecord
 from tasko_core.modules.workers.models import WorkerRecord
 
 _NOW = datetime.now(UTC)
+
+# queue name -> target depth (items pushed onto the broker's list key)
+QUEUES: dict[str, int] = {
+    "default": 34,
+    "emails": 12,
+    "reports": 3,
+    "priority": 0,
+    "maintenance": 1,
+}
 
 
 def _ago(**kwargs: float) -> datetime:
@@ -167,14 +178,47 @@ async def seed(*, reset: bool = False) -> None:
 
     verb = "Reset and seeded" if reset else "Seeded"
     print(f"{verb} {len(WORKERS)} workers and {len(TASKS)} tasks into {config.database.url}")
+    print(await _seed_redis_queues(config, reset=reset))
     await dispose_engine()
+
+
+async def _seed_redis_queues(config: Config, *, reset: bool) -> str:
+    """RPUSH placeholder payloads onto the broker's list keys so the queues
+    view has depth to show. Redis only; a no-op (with a note) otherwise."""
+    if config.broker.adapter != "redis":
+        return f"  queues: skipped — broker is {config.broker.adapter!r}, not redis"
+    url = str(config.broker.options.get("url", "redis://localhost:6379/0"))
+    prefix = str(config.broker.options.get("queue_prefix", "taskiq"))
+    try:
+        import redis.asyncio as redis
+    except ImportError:
+        return "  queues: skipped — redis client not installed"
+
+    client = redis.from_url(url)
+    try:
+        await client.ping()
+    except Exception:
+        await client.aclose()
+        return f"  queues: skipped — can't reach redis at {url}"
+
+    for name, depth in QUEUES.items():
+        key = f"{prefix}:{name}"
+        if reset:
+            await client.delete(key)
+        missing = depth - await client.llen(key)
+        if missing > 0:
+            await client.rpush(key, *([b'{"seed": true}'] * missing))
+    await client.aclose()
+    return f"  queues: topped up {len(QUEUES)} keys in {url}"
 
 
 def run() -> None:
     """Console-script entrypoint: ``tasko-seed``."""
     parser = argparse.ArgumentParser(description="Seed tasko-core with sample data.")
     parser.add_argument(
-        "--reset", action="store_true", help="delete all tasks + workers before seeding"
+        "--reset",
+        action="store_true",
+        help="delete tasks + workers and clear queue keys before seeding",
     )
     args = parser.parse_args()
     asyncio.run(seed(reset=args.reset))
