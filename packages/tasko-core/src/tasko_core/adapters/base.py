@@ -61,6 +61,14 @@ class BrokerAdapter(abc.ABC):
     async def list_queues(self) -> list[QueueStats]:
         """Return current stats for every known queue."""
 
+    async def get_queue(self, name: str) -> QueueStats | None:
+        """Stats for one queue by name. Default filters :meth:`list_queues`;
+        override if the broker can answer a single-queue query more cheaply."""
+        for queue in await self.list_queues():
+            if queue.name == name:
+                return queue
+        return None
+
     async def list_workers(self) -> list[WorkerInfo]:
         """Workers the broker itself knows about. Optional; default: none.
 

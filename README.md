@@ -25,6 +25,10 @@ them, and serves a live REST/WebSocket API consumed by a Next.js dashboard.
 
 ![Workers list](docs/screenshots/workers.png)
 
+**Queues** — current depth per queue, read straight off the broker:
+
+![Queues list](docs/screenshots/queues.png)
+
 </details>
 
 ## Layout

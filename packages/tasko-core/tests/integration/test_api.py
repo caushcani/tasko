@@ -83,7 +83,15 @@ async def test_list_tasks_rejects_unknown_sort_field(client):
 
 
 async def test_queues_from_adapter(client):
-    assert (await client.get("/api/queues")).json()[0]["depth"] == 3
+    body = (await client.get("/api/queues")).json()
+    assert {q["name"]: q["depth"] for q in body} == {"default": 3, "emails": 0}
+
+
+async def test_queue_detail(client):
+    detail = await client.get("/api/queues/default")
+    assert detail.status_code == 200
+    assert detail.json()["depth"] == 3
+    assert (await client.get("/api/queues/does-not-exist")).status_code == 404
 
 
 async def test_worker_heartbeat_then_list(client):

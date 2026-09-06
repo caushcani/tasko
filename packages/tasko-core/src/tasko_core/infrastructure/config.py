@@ -27,6 +27,8 @@ class ServerConfig(BaseModel):
         default_factory=lambda: [
             "http://localhost:3000",  # `pnpm dev` / `pnpm start` run directly
             "http://localhost:3100",  # docker-compose dev stack's published port
+            "http://127.0.0.1:3000",  # same, for browsers that use 127.0.0.1
+            "http://127.0.0.1:3100",
         ]
     )
 
