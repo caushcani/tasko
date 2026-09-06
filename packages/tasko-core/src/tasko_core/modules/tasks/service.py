@@ -32,6 +32,7 @@ async def apply_event(session: AsyncSession, event: TaskEvent) -> TaskRecord:
     record.queue = event.queue
     record.state = event.state
     record.worker_id = event.worker_id or record.worker_id
+    record.schedule_id = event.schedule_id or record.schedule_id
     record.retries = max(record.retries, event.retries)
     if event.args:
         record.args = event.args
@@ -63,6 +64,7 @@ async def list_tasks(
     state: TaskState | None = None,
     queue: str | None = None,
     worker_id: str | None = None,
+    schedule_id: str | None = None,
 ) -> tuple[list[TaskRecord], int]:
     """Filtered / sorted / searched / paginated page of tasks, plus total count."""
     filters = {
@@ -72,6 +74,7 @@ async def list_tasks(
             "state": state,
             "queue": queue,
             "worker_id": worker_id,
+            "schedule_id": schedule_id,
         }.items()
         if v is not None
     }

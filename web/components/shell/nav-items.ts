@@ -13,7 +13,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Tasks', icon: Boxes, href: '/tasks' },
   { label: 'Workers', icon: Server, href: '/workers' },
   { label: 'Queues', icon: Layers3, href: '/queues' },
-  { label: 'Schedules', icon: TimerReset, href: null },
+  { label: 'Schedules', icon: TimerReset, href: '/schedules' },
 ]
 
 export function titleFor(pathname: string): string {
@@ -24,6 +24,8 @@ export function titleFor(pathname: string): string {
   if (pathname.startsWith('/workers/')) return 'Worker detail'
   if (pathname === '/queues') return 'Queues'
   if (pathname.startsWith('/queues/')) return 'Queue detail'
+  if (pathname === '/schedules') return 'Schedules'
+  if (pathname.startsWith('/schedules/')) return 'Schedule detail'
   return 'Tasko'
 }
 

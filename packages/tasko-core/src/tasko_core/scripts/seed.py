@@ -3,8 +3,9 @@
     uv run tasko-seed            # upsert the sample rows
     uv run tasko-seed --reset    # wipe first, then seed
 
-Writes tasks + workers into whatever ``tasko.yaml`` (or ``$TASKO_CONFIG``)
-points at, and — when the broker is Redis — pushes dummy payloads onto the
+Writes tasks + workers + schedules into whatever ``tasko.yaml`` (or
+``$TASKO_CONFIG``) points at, links some task runs back to a schedule, and —
+when the broker is Redis — pushes dummy payloads onto the
 list keys so ``GET /api/queues`` shows depth. Idempotent: fixed ids for the
 DB rows, and queue keys are topped up to a target depth rather than appended
 to blindly.
@@ -26,6 +27,7 @@ from tasko_core.infrastructure.database.session import (
     init_engine,
     session_scope,
 )
+from tasko_core.modules.schedules.models import ScheduleRecord
 from tasko_core.modules.tasks.enums import TaskState
 from tasko_core.modules.tasks.models import TaskRecord
 from tasko_core.modules.workers.models import WorkerRecord
@@ -70,6 +72,37 @@ _TEMPLATES: list[tuple[str, str, str, dict[str, Any]]] = [
     ),
 ]
 
+# Schedules, and the task name each one fires. A run whose task name matches
+# is linked back (every other occurrence) so schedule detail pages have a
+# "recent runs" list and the rest look hand-kicked.
+SCHEDULES: list[dict[str, Any]] = [
+    {
+        "id": "sch-nightly-rollup",
+        "task_name": "nightly_rollup",
+        "cron": "0 2 * * *",
+        "source": "LabelScheduleSource",
+    },
+    {
+        "id": "sch-weekly-report",
+        "task_name": "generate_weekly_report",
+        "cron": "0 6 * * 1",
+        "source": "LabelScheduleSource",
+    },
+    {
+        "id": "sch-cache-refresh",
+        "task_name": "refresh_product_cache",
+        "interval_seconds": 300,
+        "source": "LabelScheduleSource",
+    },
+    {
+        "id": "sch-search-reindex",
+        "task_name": "rebuild_search_index",
+        "cron": "*/30 * * * *",
+        "source": "LabelScheduleSource",
+    },
+]
+_SCHEDULE_BY_TASK: dict[str, str] = {s["task_name"]: s["id"] for s in SCHEDULES}
+
 _TRACEBACKS = [
     'Traceback (most recent call last):\n  File "tasks.py", line 42, in run\n'
     "    resp.raise_for_status()\nhttpx.HTTPStatusError: 503 Service Unavailable",
@@ -83,8 +116,10 @@ def _build_tasks() -> list[dict[str, Any]]:
     one queued — most recent first, spread back over the last few hours."""
     rows: list[dict[str, Any]] = []
     minutes_ago = 0.0
+    name_seen: dict[str, int] = {}
     for i in range(24):
         name, queue, worker, kwargs = _TEMPLATES[i % len(_TEMPLATES)]
+        name_seen[name] = name_seen.get(name, 0) + 1
         minutes_ago += 2 + (i % 5) * 3.5
         exec_ms = 180 + (i * 137) % 4200
         started = _ago(minutes=minutes_ago)
@@ -97,6 +132,9 @@ def _build_tasks() -> list[dict[str, Any]]:
             "kwargs": kwargs,
             "started_at": started,
         }
+        # link every other occurrence of a scheduled task back to its schedule
+        if name in _SCHEDULE_BY_TASK and name_seen[name] % 2 == 1:
+            row["schedule_id"] = _SCHEDULE_BY_TASK[name]
         if i == 0:
             row |= {"state": TaskState.STARTED, "started_at": _ago(seconds=25), "updated_at": _NOW}
         elif i == 1:
@@ -146,6 +184,18 @@ async def seed(*, reset: bool = False) -> None:
         if reset:
             await session.execute(delete(TaskRecord))
             await session.execute(delete(WorkerRecord))
+            await session.execute(delete(ScheduleRecord))
+
+        for s in SCHEDULES:
+            record = await session.get(ScheduleRecord, s["id"])
+            if record is None:
+                record = ScheduleRecord(id=s["id"], task_name=s["task_name"], first_seen_at=_NOW)
+                session.add(record)
+            record.task_name = s["task_name"]
+            record.source = s.get("source", "LabelScheduleSource")
+            record.cron = s.get("cron")
+            record.interval_seconds = s.get("interval_seconds")
+            record.last_seen_at = _NOW
 
         for w in WORKERS:
             record = await session.get(WorkerRecord, w["id"])
@@ -165,6 +215,7 @@ async def seed(*, reset: bool = False) -> None:
             record.queue = t["queue"]
             record.state = t["state"]
             record.worker_id = t.get("worker_id")
+            record.schedule_id = t.get("schedule_id")
             record.retries = t.get("retries", 0)
             record.execution_ms = t.get("execution_ms")
             record.traceback = t.get("traceback")
@@ -177,7 +228,10 @@ async def seed(*, reset: bool = False) -> None:
                 record.updated_at = t["updated_at"]
 
     verb = "Reset and seeded" if reset else "Seeded"
-    print(f"{verb} {len(WORKERS)} workers and {len(TASKS)} tasks into {config.database.url}")
+    print(
+        f"{verb} {len(WORKERS)} workers, {len(TASKS)} tasks and "
+        f"{len(SCHEDULES)} schedules into {config.database.url}"
+    )
     print(await _seed_redis_queues(config, reset=reset))
     await dispose_engine()
 

@@ -42,6 +42,13 @@ def _queue_of(message: TaskiqMessage) -> str:
     return str(labels.get("queue") or labels.get("broker") or "default")
 
 
+def _schedule_id_of(message: TaskiqMessage) -> str | None:
+    """The scheduler stamps this label on every task it kicks (see
+    ``TaskiqScheduler.on_ready``); absent for tasks kicked by hand."""
+    value = (message.labels or {}).get("schedule_id")
+    return str(value) if value is not None else None
+
+
 class TaskoMiddleware(TaskiqMiddleware):
     def __init__(
         self,
@@ -110,6 +117,7 @@ class TaskoMiddleware(TaskiqMiddleware):
                 "task_id": message.task_id,
                 "name": message.task_name,
                 "queue": _queue_of(message),
+                "schedule_id": _schedule_id_of(message),
                 "state": "queued",
                 "args": list(message.args),
                 "kwargs": dict(message.kwargs),
@@ -124,6 +132,7 @@ class TaskoMiddleware(TaskiqMiddleware):
                 "task_id": message.task_id,
                 "name": message.task_name,
                 "queue": _queue_of(message),
+                "schedule_id": _schedule_id_of(message),
                 "state": "started",
             }
         )
@@ -137,6 +146,7 @@ class TaskoMiddleware(TaskiqMiddleware):
             "task_id": message.task_id,
             "name": message.task_name,
             "queue": _queue_of(message),
+            "schedule_id": _schedule_id_of(message),
             "state": "failure" if result.is_err else "success",
             "execution_ms": execution_ms,
         }
@@ -159,6 +169,7 @@ class TaskoMiddleware(TaskiqMiddleware):
                 "task_id": message.task_id,
                 "name": message.task_name,
                 "queue": _queue_of(message),
+                "schedule_id": _schedule_id_of(message),
                 "state": "retry",
                 "traceback": "".join(
                     tb_module.format_exception(type(exception), exception, exception.__traceback__)

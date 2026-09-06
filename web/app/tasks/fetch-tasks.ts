@@ -8,6 +8,7 @@ export interface TaskFilters {
   state?: string | null
   queue?: string | null
   worker_id?: string | null
+  schedule_id?: string | null
   [key: string]: unknown
 }
 
@@ -23,6 +24,7 @@ export async function fetchTasks(
     state: params.state ?? undefined,
     queue: params.queue ?? undefined,
     worker_id: params.worker_id ?? undefined,
+    schedule_id: params.schedule_id ?? undefined,
   })
 }
 

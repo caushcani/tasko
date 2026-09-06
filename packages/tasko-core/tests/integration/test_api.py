@@ -94,6 +94,80 @@ async def test_queue_detail(client):
     assert (await client.get("/api/queues/does-not-exist")).status_code == 404
 
 
+def _schedule(**over):
+    base = {
+        "schedule_id": "sch-1",
+        "task_name": "app.tasks.nightly_rollup",
+        "cron": "0 3 * * *",
+    }
+    return {**base, **over}
+
+
+async def test_schedule_sync_list_and_detail(client):
+    payload = {
+        "source": "LabelScheduleSource",
+        "schedules": [
+            _schedule(schedule_id="sch-1", task_name="app.tasks.rollup", cron="0 3 * * *"),
+            _schedule(
+                schedule_id="sch-2",
+                task_name="app.tasks.ping",
+                cron=None,
+                interval_seconds=300,
+            ),
+        ],
+    }
+    resp = await client.post("/api/schedules/sync", json=payload)
+    assert resp.status_code == 202
+    assert resp.json() == {"synced": 2, "removed": 0}
+
+    body = (await client.get("/api/schedules")).json()
+    assert body["total_count"] == 2
+    assert {s["id"] for s in body["items"]} == {"sch-1", "sch-2"}
+    by_id = {s["id"]: s for s in body["items"]}
+    assert by_id["sch-1"]["next_fire_at"] is not None  # cron → croniter
+    assert by_id["sch-2"]["next_fire_at"] is not None  # interval
+
+    detail = await client.get("/api/schedules/sch-1")
+    assert detail.status_code == 200
+    assert detail.json()["task_name"] == "app.tasks.rollup"
+    assert (await client.get("/api/schedules/nope")).status_code == 404
+
+
+async def test_schedule_sync_removes_dropped(client):
+    two = {"source": "S", "schedules": [_schedule(schedule_id="a"), _schedule(schedule_id="b")]}
+    await client.post("/api/schedules/sync", json=two)
+
+    one = {"source": "S", "schedules": [_schedule(schedule_id="a")]}
+    result = (await client.post("/api/schedules/sync", json=one)).json()
+    assert result == {"synced": 1, "removed": 1}
+    assert {s["id"] for s in (await client.get("/api/schedules")).json()["items"]} == {"a"}
+
+
+async def test_schedule_links_task_runs(client):
+    await client.post(
+        "/api/schedules/sync",
+        json={"source": "S", "schedules": [_schedule(schedule_id="sch-x")]},
+    )
+    event = {
+        "task_id": "t-fired",
+        "name": "app.tasks.rollup",
+        "queue": "reports",
+        "state": "success",
+        "schedule_id": "sch-x",
+        "execution_ms": 10,
+        "timestamp": datetime.now(UTC).isoformat(),
+    }
+    assert (await client.post("/api/tasks/events", json=event)).status_code == 202
+
+    # the schedule now reports a last_fired_at
+    detail = (await client.get("/api/schedules/sch-x")).json()
+    assert detail["last_fired_at"] is not None
+
+    # ...and the task is reachable by ?schedule_id
+    body = (await client.get("/api/tasks", params={"schedule_id": "sch-x"})).json()
+    assert [t["id"] for t in body["items"]] == ["t-fired"]
+
+
 async def test_worker_heartbeat_then_list(client):
     body = (await client.get("/api/workers")).json()
     assert body["items"] == [] and body["total_count"] == 0

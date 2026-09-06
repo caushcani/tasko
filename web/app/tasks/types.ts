@@ -8,6 +8,7 @@ export interface TaskOut {
   queue: string
   state: TaskState
   worker_id: string | null
+  schedule_id: string | null
   retries: number
   execution_ms: number | null
   queued_at: string | null

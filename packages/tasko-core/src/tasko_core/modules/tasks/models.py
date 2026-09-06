@@ -21,6 +21,9 @@ class TaskRecord(Base):
     queue: Mapped[str] = mapped_column(String(128), index=True)
     state: Mapped[TaskState] = mapped_column(Enum(TaskState), index=True)
     worker_id: Mapped[str | None] = mapped_column(String(128), index=True)
+    #: set when this run was kicked by the scheduler — the scheduler stamps a
+    #: `schedule_id` label on the task and tasko-middleware forwards it.
+    schedule_id: Mapped[str | None] = mapped_column(String(128), index=True)
 
     args: Mapped[list] = mapped_column(JSON, default=list)
     kwargs: Mapped[dict] = mapped_column(JSON, default=dict)
@@ -67,7 +70,7 @@ TASK_LIST_SPEC = ListSpec(
             "updated_at",
         }
     ),
-    filterable_fields=frozenset({"name", "queue", "state", "worker_id"}),
+    filterable_fields=frozenset({"name", "queue", "state", "worker_id", "schedule_id"}),
     searchable_fields=("id", "name", "traceback"),
     default_sort=("updated_at", "desc"),
     relations={

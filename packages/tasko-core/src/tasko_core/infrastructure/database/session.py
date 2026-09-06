@@ -32,6 +32,7 @@ async def create_all() -> None:
     if _engine is None:
         raise RuntimeError("init_engine() must be called first")
     # Import model modules so their tables are registered on Base.metadata.
+    from tasko_core.modules.schedules import models as _schedules_models  # noqa: F401
     from tasko_core.modules.tasks import models as _tasks_models  # noqa: F401
     from tasko_core.modules.workers import models as _workers_models  # noqa: F401
 

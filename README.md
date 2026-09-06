@@ -29,6 +29,10 @@ them, and serves a live REST/WebSocket API consumed by a Next.js dashboard.
 
 ![Queues list](docs/screenshots/queues.png)
 
+**Schedules** — recurring tasks the Taskiq scheduler is registered to kick, with next/last run:
+
+![Schedules list](docs/screenshots/schedules.png)
+
 </details>
 
 ## Layout
@@ -46,6 +50,36 @@ them, and serves a live REST/WebSocket API consumed by a Next.js dashboard.
 `packages/` and `web/` are independent toolchains — `uv` never touches `web/`,
 `pnpm` never touches `packages/`.
 
+## Instrument your fleet
+
+Point `tasko-middleware` at a running `tasko-core` — it's broker-agnostic, it
+only reads what Taskiq hands every middleware hook:
+
+```python
+from tasko_middleware import TaskoMiddleware
+
+broker = broker.with_middlewares(TaskoMiddleware(core_url="http://localhost:8000"))
+```
+
+That covers task lifecycle events and worker heartbeats. For the **Schedules**
+view, wrap the `ScheduleSource` you already pass to `TaskiqScheduler`:
+
+```python
+from taskiq import TaskiqScheduler
+from taskiq.schedule_sources import LabelScheduleSource
+from tasko_middleware import TaskoScheduleSource
+
+scheduler = TaskiqScheduler(
+    broker,
+    sources=[TaskoScheduleSource(LabelScheduleSource(broker),
+                                 core_url="http://localhost:8000")],
+)
+```
+
+It forwards the schedule set to core on startup and whenever it changes;
+the scheduler already stamps a `schedule_id` label on each kicked task, so
+every run links back to its schedule through the normal event stream.
+
 ## Develop
 
 ### Python workspace
@@ -54,7 +88,7 @@ them, and serves a live REST/WebSocket API consumed by a Next.js dashboard.
 # install uv: https://docs.astral.sh/uv/getting-started/installation/
 uv sync                       # one venv, one lockfile, whole workspace
 uv run tasko-core             # start the server on :8000
-uv run tasko-seed             # populate sample workers + tasks for local dev
+uv run tasko-seed             # populate sample workers + tasks + schedules
 uv run pytest                 # run the test suite
 uv run ruff check .           # lint
 ```

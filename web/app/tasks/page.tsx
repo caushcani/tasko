@@ -12,7 +12,7 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
   // TASK_FILTERS is runtime data, so its keys aren't literal types on the
   // loader's inferred return — cast once at this boundary rather than fight
   // nuqs's generic inference for a dynamically-built parser map.
-  const { offset, limit, sort, q, name, state, queue, worker_id } =
+  const { offset, limit, sort, q, name, state, queue, worker_id, schedule_id } =
     (await loadTasksSearchParams(searchParams)) as {
       offset: number
       limit: number
@@ -29,6 +29,7 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
     state,
     queue,
     worker_id,
+    schedule_id,
   }
 
   // Prefetch on the server with the exact query key useServerTable will read

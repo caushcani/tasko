@@ -17,6 +17,7 @@ class TaskEvent(BaseModel):
     queue: str
     state: TaskState
     worker_id: str | None = None
+    schedule_id: str | None = None
     args: list = Field(default_factory=list)
     kwargs: dict = Field(default_factory=dict)
     result: dict | None = None
@@ -32,6 +33,7 @@ class TaskOut(BaseModel):
     queue: str
     state: TaskState
     worker_id: str | None
+    schedule_id: str | None
     retries: int
     execution_ms: int | None
     queued_at: datetime | None

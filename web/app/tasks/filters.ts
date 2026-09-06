@@ -15,4 +15,5 @@ export const TASK_FILTERS: FilterField[] = [
   },
   { field: 'queue', label: 'Queue', type: 'text', placeholder: 'Queue name…' },
   { field: 'worker_id', label: 'Worker', type: 'text', placeholder: 'Worker id…' },
+  { field: 'schedule_id', label: 'Schedule', type: 'text', placeholder: 'Schedule id…' },
 ]
