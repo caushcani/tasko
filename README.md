@@ -13,7 +13,7 @@ them, and serves a live REST/WebSocket API consumed by a Next.js dashboard.
 
 <br>
 
-**Overview** — fleet health at a glance (chart + KPI panels are still wired to placeholder data):
+**Overview** — fleet health at a glance: 24h throughput, success rate, queue depth, recent activity — all live from the API, auto-refreshing:
 
 ![Overview dashboard](docs/screenshots/overview.png)
 
