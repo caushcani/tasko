@@ -22,7 +22,9 @@ class StubAdapter(BrokerAdapter):
 async def client(monkeypatch, tmp_path):
     monkeypatch.setattr("tasko_core.interfaces.main.load_adapter", lambda *a, **k: StubAdapter())
     db_url = f"sqlite+aiosqlite:///{tmp_path / 'test.db'}"
-    config = Config.model_validate({"database": {"url": db_url}})
+    config = Config.model_validate(
+        {"database": {"url": db_url}, "alerts": {"enabled": False}}
+    )
 
     app = create_app(config)
     transport = ASGITransport(app=app)
