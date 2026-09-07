@@ -113,14 +113,15 @@ _TRACEBACKS = [
 
 def _build_tasks() -> list[dict[str, Any]]:
     """~24 rows: mostly successes, a couple failures/retries, one running,
-    one queued — most recent first, spread back over the last few hours."""
+    one queued — most recent first, spread back over ~the last 18h so the
+    Overview throughput chart has a full 24h window to draw."""
     rows: list[dict[str, Any]] = []
     minutes_ago = 0.0
     name_seen: dict[str, int] = {}
     for i in range(24):
         name, queue, worker, kwargs = _TEMPLATES[i % len(_TEMPLATES)]
         name_seen[name] = name_seen.get(name, 0) + 1
-        minutes_ago += 2 + (i % 5) * 3.5
+        minutes_ago += 12 + (i % 5) * 18
         exec_ms = 180 + (i * 137) % 4200
         started = _ago(minutes=minutes_ago)
         finished = started + timedelta(milliseconds=exec_ms)
@@ -169,6 +170,31 @@ def _build_tasks() -> list[dict[str, Any]]:
                 "updated_at": finished,
             }
         rows.append(row)
+
+    # A thinner batch 25-46h back — outside the throughput chart's 24h window,
+    # but it gives the Overview metric cards a real "previous 24h" to diff
+    # against instead of everything reading "new".
+    for j in range(14):
+        name, queue, worker, kwargs = _TEMPLATES[j % len(_TEMPLATES)]
+        exec_ms = 200 + (j * 191) % 3800
+        started = _ago(minutes=25 * 60 + j * 95)
+        finished = started + timedelta(milliseconds=exec_ms)
+        failed = j in (3, 11)
+        rows.append(
+            {
+                "id": f"seed-p{j + 1:02d}",
+                "name": name,
+                "queue": queue,
+                "worker_id": worker,
+                "kwargs": kwargs,
+                "state": TaskState.FAILURE if failed else TaskState.SUCCESS,
+                "execution_ms": exec_ms,
+                "traceback": _TRACEBACKS[j % len(_TRACEBACKS)] if failed else None,
+                "started_at": started,
+                "finished_at": finished,
+                "updated_at": finished,
+            }
+        )
     return rows
 
 

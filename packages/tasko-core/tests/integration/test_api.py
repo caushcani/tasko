@@ -168,6 +168,62 @@ async def test_schedule_links_task_runs(client):
     assert [t["id"] for t in body["items"]] == ["t-fired"]
 
 
+async def test_stats_overview(client):
+    now = datetime.now(UTC)
+    for i in range(3):
+        await client.post(
+            "/api/tasks/events",
+            json={
+                "task_id": f"ok-{i}",
+                "name": "app.tasks.run",
+                "queue": "default",
+                "state": "success",
+                "execution_ms": 100,
+                "timestamp": now.isoformat(),
+            },
+        )
+    await client.post(
+        "/api/tasks/events",
+        json={
+            "task_id": "bad-1",
+            "name": "app.tasks.run",
+            "queue": "default",
+            "state": "failure",
+            "execution_ms": 300,
+            "timestamp": now.isoformat(),
+        },
+    )
+
+    body = (await client.get("/api/stats/overview")).json()
+    assert body["tasks_processed"]["value"] == 4
+    assert round(body["success_rate"]["value"], 3) == 0.75
+    assert body["avg_duration_ms"]["value"] == 150.0  # (100+100+100+300)/4
+    assert body["workers_online"] == 0 and body["workers_known"] == 0
+
+
+async def test_stats_throughput(client):
+    now = datetime.now(UTC)
+    await client.post(
+        "/api/tasks/events",
+        json={
+            "task_id": "t1",
+            "name": "app.tasks.run",
+            "queue": "default",
+            "state": "success",
+            "timestamp": now.isoformat(),
+        },
+    )
+
+    body = (await client.get("/api/stats/throughput", params={"window": "24h"})).json()
+    assert body["window"] == "24h"
+    assert body["bucket_seconds"] == 3600
+    assert len(body["buckets"]) == 24
+    assert body["total_completed"] == 1
+    assert body["buckets"][-1]["completed"] == 1  # most recent bucket
+
+    assert (await client.get("/api/stats/throughput", params={"window": "3h"})).status_code == 422
+
+
 async def test_worker_heartbeat_then_list(client):
     body = (await client.get("/api/workers")).json()
     assert body["items"] == [] and body["total_count"] == 0
