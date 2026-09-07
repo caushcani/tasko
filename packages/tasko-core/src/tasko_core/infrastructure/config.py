@@ -51,12 +51,23 @@ class RetentionConfig(BaseModel):
     finished_tasks: str = "7d"
 
 
+class AlertsConfig(BaseModel):
+    #: set false to stop the background rule evaluator (e.g. in tests)
+    enabled: bool = True
+    eval_interval_seconds: int = 30
+    #: default "hold" duration offered in the UI when creating a rule
+    default_for_seconds: int = 60
+    #: how long resolved alert events are kept (not enforced yet)
+    event_retention_days: int = 30
+
+
 class Config(BaseModel):
     server: ServerConfig = Field(default_factory=ServerConfig)
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
     broker: BrokerConfig = Field(default_factory=BrokerConfig)
     workers: WorkersConfig = Field(default_factory=WorkersConfig)
     retention: RetentionConfig = Field(default_factory=RetentionConfig)
+    alerts: AlertsConfig = Field(default_factory=AlertsConfig)
 
 
 def _find_config_file() -> Path | None:

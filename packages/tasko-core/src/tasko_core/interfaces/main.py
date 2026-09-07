@@ -19,6 +19,7 @@ from tasko_core.infrastructure.database import (
     init_engine,
 )
 from tasko_core.interfaces.api.v1 import api_router, ws_router
+from tasko_core.modules.alerts import loop as alert_loop
 
 
 @contextlib.asynccontextmanager
@@ -32,9 +33,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await adapter.startup()
     app.state.adapter = adapter
 
+    alerts_task = alert_loop.start(app)
+
     try:
         yield
     finally:
+        await alert_loop.stop(alerts_task)
         await adapter.shutdown()
         await dispose_engine()
 

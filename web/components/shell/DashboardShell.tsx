@@ -53,10 +53,13 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             ),
           )}
           <p className="nav-label nav-label-spaced">Manage</p>
-          <button className="nav-item" disabled aria-disabled="true" title="Not built yet">
+          <Link
+            href="/alerts"
+            className={`nav-item ${pathname.startsWith('/alerts') ? 'active' : ''}`}
+          >
             <Bell size={17} />
             <span>Alerts</span>
-          </button>
+          </Link>
         </nav>
         <div className="sidebar-bottom">
           <button className="nav-item" disabled aria-disabled="true" title="Not built yet">

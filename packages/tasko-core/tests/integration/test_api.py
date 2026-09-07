@@ -261,3 +261,81 @@ async def test_workers_filter_sort_and_detail(client):
     assert detail.json()["active_tasks"] == 5
 
     assert (await client.get("/api/workers/does-not-exist")).status_code == 404
+
+
+# --- alerts ----------------------------------------------------------
+
+
+async def test_alert_rule_crud_and_validation(client):
+    payload = {
+        "name": "Emails backlog",
+        "type": "queue_backlog",
+        "scope": "queue",
+        "scope_value": "emails",
+        "operator": "gt",
+        "threshold": 100,
+        "for_seconds": 120,
+        "severity": "critical",
+    }
+    created = await client.post("/api/alerts/rules", json=payload)
+    assert created.status_code == 201
+    body = created.json()
+    rid = body["id"]
+    assert body["state"] == "ok"
+    assert body["threshold_unit"] == "tasks"
+
+    # bad scope for this type
+    bad = await client.post(
+        "/api/alerts/rules",
+        json={**payload, "scope": "worker", "scope_value": "w1"},
+    )
+    assert bad.status_code == 422
+
+    # failure_rate needs a window
+    bad2 = await client.post(
+        "/api/alerts/rules",
+        json={"name": "fr", "type": "failure_rate", "operator": "gt", "threshold": 0.1},
+    )
+    assert bad2.status_code == 422
+
+    listed = await client.get("/api/alerts/rules", params={"type": "queue_backlog"})
+    assert listed.json()["total_count"] == 1
+
+    patched = await client.patch(
+        f"/api/alerts/rules/{rid}", json={"threshold": 50, "enabled": False}
+    )
+    assert patched.json()["threshold"] == 50 and patched.json()["enabled"] is False
+
+    ev = await client.post(f"/api/alerts/rules/{rid}/evaluate")
+    assert ev.status_code == 200 and ev.json()["last_evaluated_at"] is not None
+
+    assert (await client.delete(f"/api/alerts/rules/{rid}")).status_code == 204
+    assert (await client.get(f"/api/alerts/rules/{rid}")).status_code == 404
+
+
+async def test_alert_channel_crud_and_test(client):
+    created = await client.post(
+        "/api/alerts/channels",
+        json={"name": "hook", "type": "webhook", "config": {"url": "http://127.0.0.1:59991/x"}},
+    )
+    assert created.status_code == 201
+    cid = created.json()["id"]
+
+    # webhook without a url
+    bad = await client.post(
+        "/api/alerts/channels", json={"name": "x", "type": "webhook", "config": {}}
+    )
+    assert bad.status_code == 422
+
+    assert len((await client.get("/api/alerts/channels")).json()) == 1
+
+    # nothing is listening on that port -> ok=False, but the endpoint still 200s
+    result = await client.post(f"/api/alerts/channels/{cid}/test")
+    assert result.status_code == 200 and result.json()["ok"] is False
+
+    assert (await client.delete(f"/api/alerts/channels/{cid}")).status_code == 204
+
+
+async def test_alert_events_list_empty(client):
+    body = (await client.get("/api/alerts/events")).json()
+    assert body == {"items": [], "total_count": 0, "offset": 0, "limit": 15}

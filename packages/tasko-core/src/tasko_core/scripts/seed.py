@@ -27,6 +27,15 @@ from tasko_core.infrastructure.database.session import (
     init_engine,
     session_scope,
 )
+from tasko_core.modules.alerts.enums import (
+    ChannelType,
+    ComparisonOperator,
+    RuleState,
+    RuleType,
+    ScopeType,
+    Severity,
+)
+from tasko_core.modules.alerts.models import AlertEvent, AlertRule, NotificationChannel
 from tasko_core.modules.schedules.models import ScheduleRecord
 from tasko_core.modules.tasks.enums import TaskState
 from tasko_core.modules.tasks.models import TaskRecord
@@ -200,6 +209,88 @@ def _build_tasks() -> list[dict[str, Any]]:
 
 TASKS: list[dict[str, Any]] = _build_tasks()
 
+# One rule per RuleType. The "default backlog" one genuinely trips against the
+# seeded queue depth, so the Alerts page has a live firing alert to show; the
+# rest sit OK and the background evaluator keeps them honest.
+ALERT_RULES: list[dict[str, Any]] = [
+    {
+        "id": "rule-default-backlog",
+        "name": "Default queue backlog",
+        "type": RuleType.QUEUE_BACKLOG,
+        "scope": ScopeType.QUEUE,
+        "scope_value": "default",
+        "operator": ComparisonOperator.GT,
+        "threshold": 20,
+        "for_seconds": 120,
+        "severity": Severity.WARNING,
+        "state": RuleState.FIRING,
+    },
+    {
+        "id": "rule-fleet-failure-rate",
+        "name": "Fleet failure rate",
+        "type": RuleType.FAILURE_RATE,
+        "scope": ScopeType.GLOBAL,
+        "operator": ComparisonOperator.GT,
+        "threshold": 0.2,
+        "window_seconds": 3600,
+        "for_seconds": 300,
+        "severity": Severity.CRITICAL,
+    },
+    {
+        "id": "rule-worker-offline",
+        "name": "Worker offline",
+        "type": RuleType.WORKER_DOWN,
+        "scope": ScopeType.GLOBAL,
+        "operator": ComparisonOperator.GTE,
+        "threshold": 120,
+        "for_seconds": 60,
+        "severity": Severity.CRITICAL,
+    },
+    {
+        "id": "rule-stuck-reports",
+        "name": "Report task stuck",
+        "type": RuleType.STUCK_TASK,
+        "scope": ScopeType.QUEUE,
+        "scope_value": "reports",
+        "operator": ComparisonOperator.GTE,
+        "threshold": 900,
+        "for_seconds": 0,
+        "severity": Severity.WARNING,
+    },
+]
+
+ALERT_CHANNELS: list[dict[str, Any]] = [
+    {
+        "id": "chan-ops-webhook",
+        "name": "Ops webhook",
+        "type": ChannelType.WEBHOOK,
+        "enabled": False,
+        "config": {"url": "https://example.com/tasko-hook"},
+        "min_severity": Severity.WARNING,
+    },
+]
+
+ALERT_EVENTS: list[dict[str, Any]] = [
+    {
+        "id": "evt-backlog-active",
+        "rule_id": "rule-default-backlog",
+        "severity": Severity.WARNING,
+        "summary": "Queue backlog (default): 34 > 20",
+        "trigger_value": 34.0,
+        "started_at": _ago(minutes=8),
+        "resolved_at": None,
+    },
+    {
+        "id": "evt-failure-past",
+        "rule_id": "rule-fleet-failure-rate",
+        "severity": Severity.CRITICAL,
+        "summary": "Failure rate: 27.0% > 20.0%",
+        "trigger_value": 0.27,
+        "started_at": _ago(hours=6),
+        "resolved_at": _ago(hours=5, minutes=42),
+    },
+]
+
 
 async def seed(*, reset: bool = False) -> None:
     config = load_config()
@@ -211,6 +302,9 @@ async def seed(*, reset: bool = False) -> None:
             await session.execute(delete(TaskRecord))
             await session.execute(delete(WorkerRecord))
             await session.execute(delete(ScheduleRecord))
+            await session.execute(delete(AlertEvent))
+            await session.execute(delete(AlertRule))
+            await session.execute(delete(NotificationChannel))
 
         for s in SCHEDULES:
             record = await session.get(ScheduleRecord, s["id"])
@@ -253,10 +347,56 @@ async def seed(*, reset: bool = False) -> None:
             if "updated_at" in t:
                 record.updated_at = t["updated_at"]
 
+        for r in ALERT_RULES:
+            record = await session.get(AlertRule, r["id"])
+            fresh = record is None
+            if fresh:
+                record = AlertRule(id=r["id"])
+                session.add(record)
+            record.name = r["name"]
+            record.type = r["type"]
+            record.scope = r["scope"]
+            record.scope_value = r.get("scope_value")
+            record.operator = r["operator"]
+            record.threshold = r["threshold"]
+            record.window_seconds = r.get("window_seconds")
+            record.for_seconds = r["for_seconds"]
+            record.severity = r["severity"]
+            record.enabled = True
+            # engine-owned fields: only stamp on first insert / --reset so a
+            # re-seed doesn't stomp the live evaluator's state
+            if fresh or reset:
+                record.state = r.get("state", RuleState.OK)
+                record.state_since = _ago(minutes=8)
+
+        for c in ALERT_CHANNELS:
+            record = await session.get(NotificationChannel, c["id"])
+            if record is None:
+                record = NotificationChannel(id=c["id"])
+                session.add(record)
+            record.name = c["name"]
+            record.type = c["type"]
+            record.enabled = c["enabled"]
+            record.config = c["config"]
+            record.min_severity = c["min_severity"]
+
+        for e in ALERT_EVENTS:
+            record = await session.get(AlertEvent, e["id"])
+            if record is None:
+                record = AlertEvent(id=e["id"])
+                session.add(record)
+            record.rule_id = e["rule_id"]
+            record.severity = e["severity"]
+            record.summary = e["summary"]
+            record.trigger_value = e["trigger_value"]
+            record.started_at = e["started_at"]
+            record.resolved_at = e["resolved_at"]
+
     verb = "Reset and seeded" if reset else "Seeded"
     print(
-        f"{verb} {len(WORKERS)} workers, {len(TASKS)} tasks and "
-        f"{len(SCHEDULES)} schedules into {config.database.url}"
+        f"{verb} {len(WORKERS)} workers, {len(TASKS)} tasks, "
+        f"{len(SCHEDULES)} schedules and {len(ALERT_RULES)} alert rules "
+        f"into {config.database.url}"
     )
     print(await _seed_redis_queues(config, reset=reset))
     await dispose_engine()

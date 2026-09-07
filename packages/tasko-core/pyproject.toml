@@ -13,6 +13,7 @@ dependencies = [
     "aiosqlite>=0.20",
     "websockets>=12",
     "croniter>=2.0",  # "next fire" estimate for cron schedules
+    "httpx>=0.27",  # outbound webhook notifications for alerts
 ]
 
 [project.optional-dependencies]
