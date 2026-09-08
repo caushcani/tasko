@@ -1,9 +1,10 @@
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { fetchTaskOrNull } from '../fetch-tasks'
+import { fetchTaskGraph, fetchTaskOrNull } from '../fetch-tasks'
 import { formatAbsolute, formatDuration, formatRelative } from '@/lib/format'
 import { StatusBadge } from '../status-badge'
+import { LineagePanel } from './lineage-panel'
 
 interface TaskDetailPageProps {
   params: Promise<{ id: string }>
@@ -11,7 +12,7 @@ interface TaskDetailPageProps {
 
 export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
   const { id } = await params
-  const task = await fetchTaskOrNull(id)
+  const [task, graph] = await Promise.all([fetchTaskOrNull(id), fetchTaskGraph(id)])
   if (!task) notFound()
 
   return (
@@ -38,6 +39,15 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
             <span className="queue-pill">{task.queue}</span>
           </Field>
           <Field label="Worker">{task.worker_id ?? '—'}</Field>
+          <Field label="Triggered by">
+            {task.parent_task_id ? (
+              <Link href={`/tasks/${task.parent_task_id}`} className="font-mono text-xs hover:underline">
+                {task.parent_task_id}
+              </Link>
+            ) : (
+              '—'
+            )}
+          </Field>
           <Field label="Retries">{task.retries}</Field>
           <Field label="Duration">{formatDuration(task.execution_ms)}</Field>
           <Field label="Queued" title={formatAbsolute(task.queued_at)}>
@@ -51,6 +61,8 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
           </Field>
         </dl>
       </section>
+
+      {graph && <LineagePanel graph={graph} />}
 
       {task.traceback && (
         <section className="panel" style={{ padding: 20, borderColor: 'var(--destructive)' }}>

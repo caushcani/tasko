@@ -339,3 +339,61 @@ async def test_alert_channel_crud_and_test(client):
 async def test_alert_events_list_empty(client):
     body = (await client.get("/api/alerts/events")).json()
     assert body == {"items": [], "total_count": 0, "offset": 0, "limit": 15}
+
+
+# --- task lineage --------------------------------------------------
+
+
+async def test_task_lineage_graph(client):
+    async def kick(task_id, parent=None):
+        ev = {
+            "task_id": task_id,
+            "name": f"app.{task_id}",
+            "queue": "default",
+            "state": "success",
+            "timestamp": datetime.now(UTC).isoformat(),
+        }
+        if parent:
+            ev["parent_task_id"] = parent
+        assert (await client.post("/api/tasks/events", json=ev)).status_code == 202
+
+    # a -> b -> c, and b -> d
+    await kick("a")
+    await kick("b", "a")
+    await kick("c", "b")
+    await kick("d", "b")
+
+    graph = (await client.get("/api/tasks/c/graph")).json()
+    assert graph["root_id"] == "c"
+    assert {n["id"] for n in graph["nodes"]} == {"a", "b", "c", "d"}
+    assert {(e["source"], e["target"]) for e in graph["edges"]} == {
+        ("a", "b"),
+        ("b", "c"),
+        ("b", "d"),
+    }
+
+    # parent_task_id lands on the detail payload
+    detail = (await client.get("/api/tasks/c")).json()
+    assert detail["parent_task_id"] == "b"
+
+    # a task with no lineage → just itself, no edges
+    await kick("lonely")
+    solo = (await client.get("/api/tasks/lonely/graph")).json()
+    assert [n["id"] for n in solo["nodes"]] == ["lonely"] and solo["edges"] == []
+
+    assert (await client.get("/api/tasks/ghost/graph")).status_code == 404
+
+
+async def test_task_lineage_survives_self_kick(client):
+    ev = {
+        "task_id": "loop",
+        "name": "app.poller",
+        "queue": "default",
+        "state": "success",
+        "parent_task_id": "loop",  # task that re-kicks itself
+        "timestamp": datetime.now(UTC).isoformat(),
+    }
+    assert (await client.post("/api/tasks/events", json=ev)).status_code == 202
+    graph = (await client.get("/api/tasks/loop/graph")).json()
+    assert [n["id"] for n in graph["nodes"]] == ["loop"]
+    assert graph["edges"] == []  # self-edge is filtered out

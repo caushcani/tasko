@@ -21,6 +21,10 @@ them, and serves a live REST/WebSocket API consumed by a Next.js dashboard.
 
 ![Task detail with traceback](docs/screenshots/task-detail.png)
 
+**Task lineage** — which task triggered which, captured automatically from `.kiq()` calls (no user code changes):
+
+![Task lineage graph](docs/screenshots/lineage.png)
+
 **Workers** — the live fleet, built from `tasko-middleware` heartbeats:
 
 ![Workers list](docs/screenshots/workers.png)

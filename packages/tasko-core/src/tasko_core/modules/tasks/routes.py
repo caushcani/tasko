@@ -9,7 +9,14 @@ from tasko_core.infrastructure.realtime import hub
 from tasko_core.modules.common.pagination import ListParamsDep, PaginatedResponse
 from tasko_core.modules.tasks import service
 from tasko_core.modules.tasks.enums import TaskState
-from tasko_core.modules.tasks.schemas import TaskDetailOut, TaskEvent, TaskOut
+from tasko_core.modules.tasks.schemas import (
+    TaskDetailOut,
+    TaskEvent,
+    TaskGraphEdge,
+    TaskGraphNode,
+    TaskGraphOut,
+    TaskOut,
+)
 
 router = APIRouter(tags=["tasks"])
 
@@ -31,6 +38,7 @@ async def list_tasks(
     queue: str | None = None,
     worker_id: str | None = None,
     schedule_id: str | None = None,
+    parent_task_id: str | None = None,
 ) -> PaginatedResponse[TaskOut]:
     rows, total = await service.list_tasks(
         session,
@@ -40,6 +48,7 @@ async def list_tasks(
         queue=queue,
         worker_id=worker_id,
         schedule_id=schedule_id,
+        parent_task_id=parent_task_id,
     )
     return PaginatedResponse[TaskOut](
         items=[TaskOut.model_validate(r) for r in rows],
@@ -55,3 +64,21 @@ async def get_task(task_id: str, session: SessionDep):
     if record is None:
         raise HTTPException(status_code=404, detail="task not found")
     return record
+
+
+@router.get("/tasks/{task_id}/graph", response_model=TaskGraphOut)
+async def get_task_graph(task_id: str, session: SessionDep) -> TaskGraphOut:
+    """The parent/child lineage around one task — for the detail page's
+    dependency graph. `nodes` has a single entry (the task itself) when it has
+    no recorded lineage."""
+    rows = await service.get_task_lineage(session, task_id)
+    if not rows:
+        raise HTTPException(status_code=404, detail="task not found")
+    nodes = [TaskGraphNode.model_validate(dict(r)) for r in rows]
+    ids = {n.id for n in nodes}
+    edges = [
+        TaskGraphEdge(source=n.parent_task_id, target=n.id)
+        for n in nodes
+        if n.parent_task_id and n.parent_task_id != n.id and n.parent_task_id in ids
+    ]
+    return TaskGraphOut(root_id=task_id, nodes=nodes, edges=edges)

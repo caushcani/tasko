@@ -24,6 +24,10 @@ class TaskRecord(Base):
     #: set when this run was kicked by the scheduler — the scheduler stamps a
     #: `schedule_id` label on the task and tasko-middleware forwards it.
     schedule_id: Mapped[str | None] = mapped_column(String(128), index=True)
+    #: the task that was running when this one was `.kiq()`'d — captured by
+    #: tasko-middleware's `pre_send` hook via a contextvar. Constraint-free
+    #: (the parent may predate the middleware, or its event may arrive later).
+    parent_task_id: Mapped[str | None] = mapped_column(String(64), index=True)
 
     args: Mapped[list] = mapped_column(JSON, default=list)
     kwargs: Mapped[dict] = mapped_column(JSON, default=dict)
@@ -70,7 +74,9 @@ TASK_LIST_SPEC = ListSpec(
             "updated_at",
         }
     ),
-    filterable_fields=frozenset({"name", "queue", "state", "worker_id", "schedule_id"}),
+    filterable_fields=frozenset(
+        {"name", "queue", "state", "worker_id", "schedule_id", "parent_task_id"}
+    ),
     searchable_fields=("id", "name", "traceback"),
     default_sort=("updated_at", "desc"),
     relations={
