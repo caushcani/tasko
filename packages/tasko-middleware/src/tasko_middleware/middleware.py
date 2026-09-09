@@ -17,12 +17,19 @@ Two things flow to core, both over HTTP:
 
 The middleware is broker-agnostic: it only reads what Taskiq hands every
 middleware hook, and never talks to the broker directly.
+
+It also captures **task lineage** — which task triggered which. When a task is
+running and its code calls ``other_task.kiq(...)``, the ``pre_send`` hook stamps
+the running task's id onto the new message's labels as ``parent_task_id``. No
+user code changes; works for any ``.kiq()`` / ``.kicker()`` / ``broker.kick()``
+path since they all pass through ``pre_send``.
 """
 
 from __future__ import annotations
 
 import asyncio
 import contextlib
+import contextvars
 import os
 import time
 import traceback as tb_module
@@ -31,6 +38,13 @@ from typing import Any
 
 import httpx
 from taskiq import TaskiqMessage, TaskiqMiddleware, TaskiqResult
+
+#: The id of the task currently executing in this asyncio task. taskiq runs each
+#: message in its own ``asyncio.create_task``, which copies the context, so a
+#: ``.set()`` here is isolated to one task and never leaks to siblings.
+_current_task_id: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+    "tasko_current_task_id", default=None
+)
 
 
 def _now() -> str:
@@ -46,6 +60,11 @@ def _schedule_id_of(message: TaskiqMessage) -> str | None:
     """The scheduler stamps this label on every task it kicks (see
     ``TaskiqScheduler.on_ready``); absent for tasks kicked by hand."""
     value = (message.labels or {}).get("schedule_id")
+    return str(value) if value is not None else None
+
+
+def _parent_task_id_of(message: TaskiqMessage) -> str | None:
+    value = (message.labels or {}).get("parent_task_id")
     return str(value) if value is not None else None
 
 
@@ -111,6 +130,14 @@ class TaskoMiddleware(TaskiqMiddleware):
 
     # --- Taskiq hooks -------------------------------------------------------
 
+    async def pre_send(self, message: TaskiqMessage) -> TaskiqMessage:
+        # Client-side, right before the message goes to the broker. If a task is
+        # running right now (its code called `.kiq()`), record it as the parent.
+        parent_id = _current_task_id.get()
+        if parent_id and "parent_task_id" not in (message.labels or {}):
+            message.labels = {**(message.labels or {}), "parent_task_id": parent_id}
+        return message
+
     async def post_send(self, message: TaskiqMessage) -> None:
         await self._emit(
             {
@@ -118,6 +145,7 @@ class TaskoMiddleware(TaskiqMiddleware):
                 "name": message.task_name,
                 "queue": _queue_of(message),
                 "schedule_id": _schedule_id_of(message),
+                "parent_task_id": _parent_task_id_of(message),
                 "state": "queued",
                 "args": list(message.args),
                 "kwargs": dict(message.kwargs),
@@ -125,6 +153,7 @@ class TaskoMiddleware(TaskiqMiddleware):
         )
 
     async def pre_execute(self, message: TaskiqMessage) -> TaskiqMessage:
+        _current_task_id.set(message.task_id)
         self._inflight[message.task_id] = time.monotonic()
         self._queues_seen.add(_queue_of(message))
         await self._emit(
@@ -133,6 +162,7 @@ class TaskoMiddleware(TaskiqMiddleware):
                 "name": message.task_name,
                 "queue": _queue_of(message),
                 "schedule_id": _schedule_id_of(message),
+                "parent_task_id": _parent_task_id_of(message),
                 "state": "started",
             }
         )

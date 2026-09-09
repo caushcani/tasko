@@ -112,6 +112,16 @@ SCHEDULES: list[dict[str, Any]] = [
 ]
 _SCHEDULE_BY_TASK: dict[str, str] = {s["task_name"]: s["id"] for s in SCHEDULES}
 
+# child seed id -> parent seed id, so the task-detail lineage graph has
+# something to draw: a chain seed-09 → seed-07 → seed-05 → seed-03 plus a
+# fan-out seed-09 → seed-08. Parents are older runs (higher index).
+_LINEAGE: dict[str, str] = {
+    "seed-03": "seed-05",
+    "seed-05": "seed-07",
+    "seed-07": "seed-09",
+    "seed-08": "seed-09",
+}
+
 _TRACEBACKS = [
     'Traceback (most recent call last):\n  File "tasks.py", line 42, in run\n'
     "    resp.raise_for_status()\nhttpx.HTTPStatusError: 503 Service Unavailable",
@@ -145,6 +155,8 @@ def _build_tasks() -> list[dict[str, Any]]:
         # link every other occurrence of a scheduled task back to its schedule
         if name in _SCHEDULE_BY_TASK and name_seen[name] % 2 == 1:
             row["schedule_id"] = _SCHEDULE_BY_TASK[name]
+        if row["id"] in _LINEAGE:
+            row["parent_task_id"] = _LINEAGE[row["id"]]
         if i == 0:
             row |= {"state": TaskState.STARTED, "started_at": _ago(seconds=25), "updated_at": _NOW}
         elif i == 1:
@@ -336,6 +348,7 @@ async def seed(*, reset: bool = False) -> None:
             record.state = t["state"]
             record.worker_id = t.get("worker_id")
             record.schedule_id = t.get("schedule_id")
+            record.parent_task_id = t.get("parent_task_id")
             record.retries = t.get("retries", 0)
             record.execution_ms = t.get("execution_ms")
             record.traceback = t.get("traceback")

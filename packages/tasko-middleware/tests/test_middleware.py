@@ -6,6 +6,14 @@ import httpx
 import pytest
 from taskiq import InMemoryBroker, TaskiqMessage, TaskiqResult
 from tasko_middleware import TaskoMiddleware
+from tasko_middleware.middleware import _current_task_id
+
+
+@pytest.fixture(autouse=True)
+def _reset_lineage_ctx():
+    token = _current_task_id.set(None)
+    yield
+    _current_task_id.reset(token)
 
 
 @pytest.fixture
@@ -70,3 +78,33 @@ async def test_no_heartbeat_task_on_client_process(middleware):
     await middleware.startup()
     assert middleware._heartbeat_task is None
     await middleware.shutdown()
+
+
+async def test_pre_send_stamps_parent_from_running_task(middleware, captured):
+    # a task is executing...
+    await middleware.pre_execute(_msg("parent-1"))
+    # ...and its code kicks another task
+    child = _msg("child-1")
+    child.labels.pop("parent_task_id", None)
+    returned = await middleware.pre_send(child)
+    assert returned.labels["parent_task_id"] == "parent-1"
+
+    # and post_send forwards it in the queued event
+    captured.clear()
+    await middleware.post_send(child)
+    assert b'"parent_task_id":"parent-1"' in captured[0][1]
+    assert b'"state":"queued"' in captured[0][1]
+
+
+async def test_pre_send_no_parent_when_nothing_running(middleware):
+    msg = _msg("top-level")
+    await middleware.pre_send(msg)
+    assert "parent_task_id" not in msg.labels
+
+
+async def test_pre_send_does_not_override_existing_parent(middleware):
+    await middleware.pre_execute(_msg("parent-1"))
+    msg = _msg("child")
+    msg.labels["parent_task_id"] = "explicit-parent"
+    await middleware.pre_send(msg)
+    assert msg.labels["parent_task_id"] == "explicit-parent"

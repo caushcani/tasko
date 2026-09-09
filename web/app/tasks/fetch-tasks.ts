@@ -1,7 +1,7 @@
 import { apiFetch, ApiError } from '@/lib/api/client'
 import type { PaginatedResponse } from '@/lib/api/types'
 import { serializeSort, type ServerQueryState } from '@/lib/table/url-state'
-import type { TaskDetailOut, TaskOut } from './types'
+import type { TaskDetailOut, TaskGraphOut, TaskOut } from './types'
 
 export interface TaskFilters {
   name?: string | null
@@ -33,6 +33,17 @@ export async function fetchTasks(
 export async function fetchTaskOrNull(id: string): Promise<TaskDetailOut | null> {
   try {
     return await apiFetch<TaskDetailOut>(`/api/tasks/${encodeURIComponent(id)}`)
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) return null
+    throw err
+  }
+}
+
+/** The parent/child lineage around a task. `nodes` is just the task itself
+ * when it has no recorded lineage. `null` on 404. */
+export async function fetchTaskGraph(id: string): Promise<TaskGraphOut | null> {
+  try {
+    return await apiFetch<TaskGraphOut>(`/api/tasks/${encodeURIComponent(id)}/graph`)
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) return null
     throw err
