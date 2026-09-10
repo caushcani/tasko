@@ -1,12 +1,13 @@
 // Typed fetch wrapper for tasko-core.
 //
-// Runs on both sides of the SSR boundary: server components / route
-// handlers call it directly against the internal Docker URL, client
-// components call it against a publicly reachable one. Point
-// TASKO_CORE_URL at the internal address and NEXT_PUBLIC_TASKO_CORE_URL at
-// the public one — see docker-compose.yml when a page starts using this
-// client-side. NEXT_PUBLIC_* is inlined at build time in a prod build, so a
-// container-only env override won't reach an already-built bundle.
+// Runs on both sides of the SSR boundary:
+//  - server (SSR prefetch): TASKO_CORE_URL, the internal address (e.g.
+//    http://core:8000 on the compose network).
+//  - browser: NEXT_PUBLIC_TASKO_CORE_URL if set (baked at build time), else
+//    the page's own origin — so a same-origin reverse-proxy deploy (Traefik &
+//    co. serving /api and /ws on the dashboard host) needs no build-time
+//    config. Only set NEXT_PUBLIC_TASKO_CORE_URL when the API lives on a
+//    different origin than the dashboard.
 
 export class ApiError extends Error {
   constructor(
@@ -19,11 +20,12 @@ export class ApiError extends Error {
 }
 
 function baseUrl(): string {
-  const url =
-    typeof window === "undefined"
-      ? process.env.TASKO_CORE_URL
-      : process.env.NEXT_PUBLIC_TASKO_CORE_URL
-  return url ?? "http://localhost:8000"
+  if (typeof window === "undefined") {
+    return process.env.TASKO_CORE_URL ?? "http://localhost:8000"
+  }
+  // `||` not `??`: an empty NEXT_PUBLIC_TASKO_CORE_URL (the default build arg)
+  // also falls through to the current origin.
+  return process.env.NEXT_PUBLIC_TASKO_CORE_URL || window.location.origin
 }
 
 function buildUrl(path: string, params?: Record<string, unknown>): string {

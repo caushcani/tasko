@@ -124,6 +124,12 @@ docker compose -f docker/docker-compose.yml exec core tasko-seed
 After changing a dependency (`package.json` / `pyproject.toml`), rebuild:
 `docker compose -f docker/docker-compose.yml up --build --renew-anon-volumes`.
 
+## Deploy
+
+[docs/self-hosting.md](docs/self-hosting.md) — LAN, production-style, or public
+behind Traefik (single origin, TLS, enforced basicauth). **Tasko has no
+built-in auth**; never expose it publicly without a proxy auth layer.
+
 ## Writing a broker adapter
 
 See [docs/writing-a-broker-adapter.md](docs/writing-a-broker-adapter.md).

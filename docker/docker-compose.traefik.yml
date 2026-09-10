@@ -1,0 +1,75 @@
+name: tasko
+
+# Public exposure through an existing Traefik instance. Layer on the base:
+#
+#   cp .env.example .env      # then fill it in (from the repo root)
+#   docker compose -f docker/docker-compose.yml -f docker/docker-compose.traefik.yml up -d --build
+#
+# Requires: a running Traefik with a cert resolver and an external docker
+# network (both named in .env). This overlay builds the immutable images
+# (like docker-compose.prod.yml), drops every published host port — Traefik
+# is the only way in — and serves the dashboard and the API on one origin,
+# so the browser bundle needs no build-time URL.
+#
+# Tasko has NO built-in auth. TASKO_BASICAUTH_USERS is required; with it
+# unset Traefik denies every request. See docs/self-hosting.md.
+
+networks:
+  traefik:
+    external: true
+    name: ${TRAEFIK_NETWORK:-traefik}
+
+services:
+  postgres:
+    ports: !override []
+    environment:
+      POSTGRES_USER: tasko
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tasko}
+      POSTGRES_DB: tasko
+    restart: unless-stopped
+
+  redis:
+    restart: unless-stopped
+
+  core:
+    build:
+      target: prod
+    volumes: !override
+      - ../tasko.docker.yaml:/app/tasko.docker.yaml:ro
+    ports: !override []
+    networks: [default, traefik]
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${TRAEFIK_NETWORK:-traefik}
+      - traefik.http.routers.tasko-api.rule=Host(`${TASKO_DOMAIN}`) && (PathPrefix(`/api`) || PathPrefix(`/ws`))
+      - traefik.http.routers.tasko-api.entrypoints=websecure
+      - traefik.http.routers.tasko-api.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}
+      - traefik.http.routers.tasko-api.priority=100
+      - traefik.http.routers.tasko-api.middlewares=tasko-auth
+      - traefik.http.services.tasko-api.loadbalancer.server.port=8000
+      - traefik.http.middlewares.tasko-auth.basicauth.users=${TASKO_BASICAUTH_USERS}
+
+  web:
+    build:
+      target: run
+      args:
+        # empty → browser talks to the API at its own origin, via the
+        # /api + /ws routes below. No per-deploy rebuild.
+        NEXT_PUBLIC_TASKO_CORE_URL: ""
+    volumes: !override []
+    environment: !override
+      TASKO_CORE_URL: http://core:8000
+      NODE_ENV: production
+    ports: !override []
+    networks: [default, traefik]
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${TRAEFIK_NETWORK:-traefik}
+      - traefik.http.routers.tasko-web.rule=Host(`${TASKO_DOMAIN}`)
+      - traefik.http.routers.tasko-web.entrypoints=websecure
+      - traefik.http.routers.tasko-web.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}
+      - traefik.http.routers.tasko-web.priority=10
+      - traefik.http.routers.tasko-web.middlewares=tasko-auth
+      - traefik.http.services.tasko-web.loadbalancer.server.port=3000
