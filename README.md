@@ -127,3 +127,7 @@ After changing a dependency (`package.json` / `pyproject.toml`), rebuild:
 ## Writing a broker adapter
 
 See [docs/writing-a-broker-adapter.md](docs/writing-a-broker-adapter.md).
+
+## License
+
+MIT — see [LICENSE](LICENSE).

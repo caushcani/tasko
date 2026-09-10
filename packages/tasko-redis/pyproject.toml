@@ -3,6 +3,9 @@ name = "tasko-redis"
 version = "0.1.0"
 description = "Redis BrokerAdapter for Tasko"
 requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Caush Cani", email = "caushcani@gmail.com" }]
 dependencies = [
     "tasko-core",
     "redis>=5.0",

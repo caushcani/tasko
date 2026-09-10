@@ -3,6 +3,8 @@ name = "tasko-workspace"
 version = "0.1.0"
 description = "Tasko — a broker-agnostic observability dashboard for Taskiq fleets"
 requires-python = ">=3.11"
+license = "MIT"
+authors = [{ name = "Caush Cani", email = "caushcani@gmail.com" }]
 # v1 packages — `uv sync` installs these (and their workspace deps) editable.
 # The rabbitmq / nats stubs are left out on purpose; add them here when real.
 dependencies = [

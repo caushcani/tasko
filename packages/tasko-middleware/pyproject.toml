@@ -3,6 +3,9 @@ name = "tasko-middleware"
 version = "0.1.0"
 description = "Broker-agnostic TaskiqMiddleware that reports task lifecycle events to tasko-core"
 requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Caush Cani", email = "caushcani@gmail.com" }]
 dependencies = [
     "taskiq>=0.11",
     "httpx>=0.27",

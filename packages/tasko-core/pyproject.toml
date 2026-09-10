@@ -3,6 +3,9 @@ name = "tasko-core"
 version = "0.1.0"
 description = "Tasko server: ingest API, REST/WS, broker adapter registry"
 requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Caush Cani", email = "caushcani@gmail.com" }]
 dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",
