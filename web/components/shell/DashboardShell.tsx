@@ -4,18 +4,41 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Bell, Menu, Search, Settings2 } from 'lucide-react'
-import { isNavItemActive, NAV_ITEMS, titleFor } from './nav-items'
+import { CommandPalette } from './CommandPalette'
+import { GlobalHotkeys } from './GlobalHotkeys'
+import { isNavItemActive, NAV_ITEMS, titleFor, type NavItem } from './nav-items'
+
+function NavLink({ item, active }: { item: NavItem; active: boolean }) {
+  if (!item.href) {
+    return (
+      <button className="nav-item" disabled aria-disabled="true" title="Not built yet">
+        <item.icon size={17} />
+        <span>{item.label}</span>
+      </button>
+    )
+  }
+  return (
+    <Link href={item.href} className={`nav-item ${active ? 'active' : ''}`}>
+      <item.icon size={17} />
+      <span>{item.label}</span>
+    </Link>
+  )
+}
 
 // The sidebar + topbar chrome every dashboard page shares. Lives in the root
 // layout so `/`, `/tasks`, etc. only ever render their own content — see
 // app/layout.tsx.
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const [mobileNav, setMobileNav] = useState(false)
+  const [paletteOpen, setPaletteOpen] = useState(false)
   const pathname = usePathname()
   const title = titleFor(pathname)
 
   return (
     <main className="app-shell">
+      <GlobalHotkeys />
+      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
+
       <aside className={`sidebar ${mobileNav ? 'mobile-open' : ''}`}>
         <div className="brand">
           <div className="brand-mark">
@@ -29,37 +52,13 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         </div>
         <nav className="primary-nav" aria-label="Main navigation">
           <p className="nav-label">Monitor</p>
-          {NAV_ITEMS.map((item) =>
-            item.href ? (
-              <Link
-                href={item.href}
-                className={`nav-item ${isNavItemActive(item, pathname) ? 'active' : ''}`}
-                key={item.label}
-              >
-                <item.icon size={17} />
-                <span>{item.label}</span>
-              </Link>
-            ) : (
-              <button
-                className="nav-item"
-                key={item.label}
-                disabled
-                aria-disabled="true"
-                title="Not built yet"
-              >
-                <item.icon size={17} />
-                <span>{item.label}</span>
-              </button>
-            ),
-          )}
+          {NAV_ITEMS.filter((item) => item.group === 'monitor').map((item) => (
+            <NavLink item={item} active={isNavItemActive(item, pathname)} key={item.label} />
+          ))}
           <p className="nav-label nav-label-spaced">Manage</p>
-          <Link
-            href="/alerts"
-            className={`nav-item ${pathname.startsWith('/alerts') ? 'active' : ''}`}
-          >
-            <Bell size={17} />
-            <span>Alerts</span>
-          </Link>
+          {NAV_ITEMS.filter((item) => item.group === 'manage').map((item) => (
+            <NavLink item={item} active={isNavItemActive(item, pathname)} key={item.label} />
+          ))}
         </nav>
         <div className="sidebar-bottom">
           <button className="nav-item" disabled aria-disabled="true" title="Not built yet">
@@ -91,11 +90,11 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             <strong>{title}</strong>
           </div>
           <div className="top-actions">
-            <div className="search-box">
+            <button className="search-box" onClick={() => setPaletteOpen(true)}>
               <Search size={16} />
               <span>Search tasks...</span>
               <kbd>⌘ K</kbd>
-            </div>
+            </button>
             <button className="icon-button" aria-label="Notifications" disabled>
               <Bell size={18} />
             </button>
