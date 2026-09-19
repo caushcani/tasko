@@ -23,9 +23,11 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY web/ ./
 # NEXT_PUBLIC_* vars are inlined into the client bundle at build time — a
 # runtime `environment:` override in compose won't reach an already-built
-# image. Pass the real one at build time:
-#   docker compose ... build --build-arg NEXT_PUBLIC_TASKO_CORE_URL=https://tasko.example.com
-ARG NEXT_PUBLIC_TASKO_CORE_URL=http://localhost:8000
+# image. Empty by default: the browser then talks to the API at its own
+# origin (a same-origin reverse proxy — see docs/self-hosting.md). Only set
+# this when the API is on a different host than the dashboard:
+#   docker compose ... build --build-arg NEXT_PUBLIC_TASKO_CORE_URL=https://api.tasko.example.com
+ARG NEXT_PUBLIC_TASKO_CORE_URL=
 ENV NEXT_PUBLIC_TASKO_CORE_URL=${NEXT_PUBLIC_TASKO_CORE_URL}
 RUN pnpm build
 
