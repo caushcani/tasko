@@ -89,8 +89,17 @@ broker:
 
 `GET /healthz` lists every discovered adapter — use it to confirm registration.
 
-## Reference implementation
+## Reference implementations
 
-`packages/tasko-redis/src/tasko_redis/adapter.py` is the canonical example:
-queue depth from `LLEN` on Taskiq's list keys, and no `list_workers` override
-(Redis lists have no consumer registry).
+Two, covering the two shapes a broker tends to have:
+
+- `packages/tasko-redis/src/tasko_redis/adapter.py` — a broker whose native
+  protocol can enumerate queues blind (`SCAN` over Taskiq's list keys) and has no consumer registry, so `list_workers` is left at the default.
+- `packages/tasko-rabbitmq/src/tasko_rabbitmq/adapter.py` — the opposite:
+  AMQP has no "list queues" operation at all (a client can only ask about a
+  queue it already knows the name of), so this adapter talks to the broker's
+  **HTTP Management API** instead of opening an AMQP connection, and that
+  same API is rich enough to implement `list_workers` (grouping live
+  consumers by connection). If your broker's wire protocol can't enumerate
+  queues either, a management/admin HTTP API — if the broker has one — is
+  usually the way in.

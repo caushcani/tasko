@@ -4,7 +4,7 @@ A broker-agnostic observability dashboard for [Taskiq](https://taskiq-python.git
 fleets. Tasko ingests task lifecycle events through a `TaskiqMiddleware`, stores
 them, and serves a live REST/WebSocket API consumed by a Next.js dashboard.
 
-> Prototype. v1 scope: `tasko-core` + `tasko-middleware` + `tasko-redis` + `web`.
+> Prototype. v1 scope: `tasko-core` + `tasko-middleware` + `tasko-redis` + `tasko-rabbitmq` + `web`.
 
 ![The Tasko dashboard — every task the fleet has run, filterable and sortable](docs/screenshots/tasks.png)
 
@@ -45,8 +45,8 @@ them, and serves a live REST/WebSocket API consumed by a Next.js dashboard.
 | ----------------------------- | ---------------------------------------------------------- |
 | `packages/tasko-core`         | FastAPI server: ingest API, REST/WS, adapter registry      |
 | `packages/tasko-middleware`   | `TaskiqMiddleware` subclass that reports events to core    |
-| `packages/tasko-redis`        | `BrokerAdapter` implementation for Redis (v1 target)       |
-| `packages/tasko-rabbitmq`     | `BrokerAdapter` stub (later / contributors)                |
+| `packages/tasko-redis`        | `BrokerAdapter` for Redis — queue depth via `SCAN`/`LLEN`  |
+| `packages/tasko-rabbitmq`     | `BrokerAdapter` for RabbitMQ — via the HTTP Management API |
 | `packages/tasko-nats`         | `BrokerAdapter` stub (later / contributors)                |
 | `web/`                        | Next.js SSR dashboard                                       |
 | `docker/`                     | Multi-stage Dockerfiles + `docker-compose.yml` (dev) + `docker-compose.prod.yml` overlay |
