@@ -8,30 +8,20 @@ export const metadata: Metadata = {
   title: 'Tasko — Taskiq fleet monitoring',
   description: 'A self-hosted dashboard for Taskiq workers, queues, throughput, and task health.',
   icons: {
+    // One mark, not a light/dark pair — the dashboard itself has no light
+    // theme (globals.css is dark-only), and the icon's own dark background
+    // reads fine in either browser chrome anyway.
     icon: [
-      {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
-      },
+      { url: '/icon-32x32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/icon.svg', type: 'image/svg+xml' },
     ],
     apple: '/apple-icon.png',
   },
 }
 
 export const viewport: Viewport = {
-  colorScheme: 'light dark',
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: 'white' },
-    { media: '(prefers-color-scheme: dark)', color: 'black' },
-  ],
+  colorScheme: 'dark',
+  themeColor: '#0b1014',
 }
 
 export default function RootLayout({
