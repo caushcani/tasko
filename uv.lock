@@ -1289,7 +1289,7 @@ requires-dist = [
 
 [[package]]
 name = "tasko-nats"
-version = "0.0.0"
+version = "0.1.0"
 source = { editable = "packages/tasko-nats" }
 dependencies = [
     { name = "nats-py" },
@@ -1339,6 +1339,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "tasko-core" },
     { name = "tasko-middleware" },
+    { name = "tasko-nats" },
     { name = "tasko-rabbitmq" },
     { name = "tasko-redis" },
 ]
@@ -1361,6 +1362,7 @@ requires-dist = [
     { name = "tasko-core", editable = "packages/tasko-core" },
     { name = "tasko-core", extras = ["postgres"], marker = "extra == 'postgres'", editable = "packages/tasko-core" },
     { name = "tasko-middleware", editable = "packages/tasko-middleware" },
+    { name = "tasko-nats", editable = "packages/tasko-nats" },
     { name = "tasko-rabbitmq", editable = "packages/tasko-rabbitmq" },
     { name = "tasko-redis", editable = "packages/tasko-redis" },
 ]
