@@ -6,12 +6,12 @@ requires-python = ">=3.11"
 license = "MIT"
 authors = [{ name = "Caush Cani", email = "caushcani@gmail.com" }]
 # v1 packages — `uv sync` installs these (and their workspace deps) editable.
-# The nats stub is left out on purpose; add it here when real.
 dependencies = [
     "tasko-core",
     "tasko-middleware",
     "tasko-redis",
     "tasko-rabbitmq",
+    "tasko-nats",
 ]
 
 [project.optional-dependencies]
@@ -31,6 +31,7 @@ tasko-core = { workspace = true }
 tasko-middleware = { workspace = true }
 tasko-redis = { workspace = true }
 tasko-rabbitmq = { workspace = true }
+tasko-nats = { workspace = true }
 
 [dependency-groups]
 dev = [
