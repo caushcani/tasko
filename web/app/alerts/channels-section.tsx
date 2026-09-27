@@ -40,7 +40,7 @@ export function ChannelsSection() {
   const [testResults, setTestResults] = useState<Record<string, ChannelTestResult>>({})
 
   const destinationValid =
-    type === 'webhook' ? Boolean(url.trim()) : to.split(',').some((a) => a.trim())
+    type === 'email' ? to.split(',').some((a) => a.trim()) : Boolean(url.trim())
 
   const addMut = useMutation({
     mutationFn: () =>
@@ -48,9 +48,9 @@ export function ChannelsSection() {
         name: name.trim(),
         type,
         config:
-          type === 'webhook'
-            ? { url: url.trim() }
-            : { to: to.split(',').map((a) => a.trim()).filter(Boolean) },
+          type === 'email'
+            ? { to: to.split(',').map((a) => a.trim()).filter(Boolean) }
+            : { url: url.trim() },
         min_severity: minSeverity,
       }),
     onSuccess: () => {
@@ -102,20 +102,25 @@ export function ChannelsSection() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="webhook">Webhook</SelectItem>
+              <SelectItem value="slack">Slack</SelectItem>
               <SelectItem value="email">Email</SelectItem>
             </SelectContent>
           </Select>
-          {type === 'webhook' ? (
-            <Input
-              placeholder="https://hooks.example.com/…"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-            />
-          ) : (
+          {type === 'email' ? (
             <Input
               placeholder="oncall@example.com, backup@example.com"
               value={to}
               onChange={(e) => setTo(e.target.value)}
+            />
+          ) : (
+            <Input
+              placeholder={
+                type === 'slack'
+                  ? 'https://hooks.slack.com/services/…'
+                  : 'https://hooks.example.com/…'
+              }
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
             />
           )}
           <Select value={minSeverity} onValueChange={(v) => v && setMinSeverity(v as Severity)}>
@@ -161,9 +166,9 @@ export function ChannelsSection() {
                 <tr key={c.id}>
                   <td className="font-medium">{c.name}</td>
                   <td className="mono muted-cell max-w-[280px] truncate">
-                    {c.type === 'webhook'
-                      ? String(c.config.url ?? '')
-                      : (c.config.to as string[] | undefined)?.join(', ')}
+                    {c.type === 'email'
+                      ? (c.config.to as string[] | undefined)?.join(', ')
+                      : String(c.config.url ?? '')}
                     {testResults[c.id] && (
                       <span
                         className="ml-2"

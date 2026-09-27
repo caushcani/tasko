@@ -176,18 +176,22 @@ async def test_channel(channel_id: str, session: SessionDep) -> ChannelTestResul
         except Exception as exc:
             return ChannelTestResult(ok=False, detail=str(exc) or exc.__class__.__name__)
 
-    payload = {
-        "event": "test",
-        "summary": "Tasko test notification — this channel is reachable.",
-        "rule": {"name": "Test", "severity": Severity.WARNING.value},
-    }
+    if channel.type is ChannelType.SLACK:
+        payload: dict = {
+            "text": ":rotating_light: Tasko test notification — this channel is reachable."
+        }
+        headers: dict = {}
+    else:
+        payload = {
+            "event": "test",
+            "summary": "Tasko test notification — this channel is reachable.",
+            "rule": {"name": "Test", "severity": Severity.WARNING.value},
+        }
+        headers = channel.config.get("headers") or {}
+
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
-            resp = await client.post(
-                channel.config.get("url"),
-                json=payload,
-                headers=channel.config.get("headers") or {},
-            )
+            resp = await client.post(channel.config.get("url"), json=payload, headers=headers)
         return ChannelTestResult(ok=resp.is_success, detail=f"HTTP {resp.status_code}")
     except httpx.HTTPError as exc:
         return ChannelTestResult(ok=False, detail=str(exc) or exc.__class__.__name__)

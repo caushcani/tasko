@@ -1,9 +1,11 @@
 """Fan a firing / resolved alert out to the configured notification channels.
 
-Webhooks post a JSON payload directly. Email channels send through whatever
-SMTP relay is configured in Settings — looked up lazily, once per dispatch
-call, only if an email channel is actually targeted. Delivery is
-best-effort — a channel that errors never blocks the evaluation cycle.
+Webhooks post Tasko's own JSON payload directly. Slack channels post that
+same event as Slack's `{"text": ...}` incoming-webhook format instead — Slack
+rejects the generic shape. Email channels send through whatever SMTP relay is
+configured in Settings — looked up lazily, once per dispatch call, only if an
+email channel is actually targeted. Delivery is best-effort — a channel that
+errors never blocks the evaluation cycle.
 """
 
 from __future__ import annotations
@@ -53,6 +55,28 @@ async def _send_webhook(
     if not url:
         return
     await client.post(url, json=payload, headers=cfg.get("headers") or {})
+
+
+def _slack_text(rule: AlertRule, event: AlertEvent, *, resolved: bool) -> str:
+    icon = ":white_check_mark:" if resolved else ":rotating_light:"
+    state = "RESOLVED" if resolved else "FIRING"
+    return f"{icon} *[{state}]* {rule.severity.value.upper()} — *{rule.name}*\n{event.summary}"
+
+
+async def _send_slack(
+    client: httpx.AsyncClient,
+    channel: NotificationChannel,
+    rule: AlertRule,
+    event: AlertEvent,
+    *,
+    resolved: bool,
+) -> None:
+    url = (channel.config or {}).get("url")
+    if not url:
+        return
+    # Slack's incoming-webhook format — a plain `{"text": ...}`, not Tasko's
+    # own JSON payload shape (which Slack would reject as invalid).
+    await client.post(url, json={"text": _slack_text(rule, event, resolved=resolved)})
 
 
 def _email_body(rule: AlertRule, event: AlertEvent, *, resolved: bool) -> str:
@@ -118,6 +142,8 @@ async def dispatch(
             try:
                 if channel.type is ChannelType.WEBHOOK:
                     await _send_webhook(client, channel, payload)
+                elif channel.type is ChannelType.SLACK:
+                    await _send_slack(client, channel, rule, event, resolved=resolved)
                 else:
                     if settings is None:
                         settings = await settings_service.get_settings(session)

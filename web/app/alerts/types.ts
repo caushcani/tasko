@@ -5,7 +5,7 @@ export type ScopeType = 'global' | 'queue' | 'task_name' | 'worker'
 export type ComparisonOperator = 'gt' | 'gte' | 'lt' | 'lte'
 export type Severity = 'warning' | 'critical'
 export type RuleState = 'ok' | 'pending' | 'firing'
-export type ChannelType = 'webhook' | 'email'
+export type ChannelType = 'webhook' | 'email' | 'slack'
 
 export interface AlertRuleOut {
   id: string

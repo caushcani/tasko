@@ -38,6 +38,7 @@ class RuleState(StrEnum):
 class ChannelType(StrEnum):
     WEBHOOK = "webhook"
     EMAIL = "email"
+    SLACK = "slack"
 
 
 #: Which scopes each rule type accepts. Enforced on create/update.

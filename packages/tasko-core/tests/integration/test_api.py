@@ -341,6 +341,25 @@ async def test_alert_events_list_empty(client):
     assert body == {"items": [], "total_count": 0, "offset": 0, "limit": 15}
 
 
+async def test_alert_slack_channel_uses_slack_payload_shape(client):
+    created = await client.post(
+        "/api/alerts/channels",
+        json={"name": "slack", "type": "slack", "config": {"url": "http://127.0.0.1:59991/x"}},
+    )
+    assert created.status_code == 201
+    cid = created.json()["id"]
+
+    # slack channel without a url
+    bad = await client.post(
+        "/api/alerts/channels", json={"name": "x", "type": "slack", "config": {}}
+    )
+    assert bad.status_code == 422
+
+    # nothing is listening on that port -> ok=False, but the endpoint still 200s
+    result = await client.post(f"/api/alerts/channels/{cid}/test")
+    assert result.status_code == 200 and result.json()["ok"] is False
+
+
 async def test_alert_email_channel_test_without_smtp_configured(client):
     created = await client.post(
         "/api/alerts/channels",

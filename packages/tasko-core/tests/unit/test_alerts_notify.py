@@ -79,6 +79,32 @@ async def test_dispatch_sends_webhook(session):
     assert calls[0].url == httpx.URL("http://example.test/hook")
 
 
+async def test_dispatch_sends_slack_message(session):
+    rule = _rule()
+    session.add(rule)
+    await session.flush()
+    channel = NotificationChannel(
+        name="slack", type=ChannelType.SLACK, config={"url": "http://example.test/slack"}
+    )
+    session.add(channel)
+    await session.flush()
+
+    calls = []
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(200)
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    await notify.dispatch(session, rule, _event(rule), resolved=False, client=client)
+    await client.aclose()
+
+    assert len(calls) == 1
+    body = calls[0].content.decode()
+    assert '"text"' in body
+    assert "Queue backlog: 42 > 10" in body
+
+
 async def test_dispatch_sends_email_via_configured_smtp(session, monkeypatch):
     await settings_service.update_settings(
         session,

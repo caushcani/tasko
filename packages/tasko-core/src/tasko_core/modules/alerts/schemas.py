@@ -105,8 +105,8 @@ class NotificationChannelIn(BaseModel):
 
     @model_validator(mode="after")
     def _check(self) -> NotificationChannelIn:
-        if self.type is ChannelType.WEBHOOK and not self.config.get("url"):
-            raise ValueError("webhook channel needs config.url")
+        if self.type in (ChannelType.WEBHOOK, ChannelType.SLACK) and not self.config.get("url"):
+            raise ValueError(f"{self.type.value} channel needs config.url")
         if self.type is ChannelType.EMAIL and not self.config.get("to"):
             raise ValueError("email channel needs config.to")
         return self
