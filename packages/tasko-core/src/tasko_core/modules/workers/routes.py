@@ -16,6 +16,7 @@ from fastapi import APIRouter, HTTPException, Request
 
 from tasko_core.infrastructure.database import SessionDep
 from tasko_core.modules.common.pagination import ListParamsDep, PaginatedResponse
+from tasko_core.modules.settings import service as settings_service
 from tasko_core.modules.workers import service
 from tasko_core.modules.workers.schemas import WorkerHeartbeat, WorkerOut
 
@@ -35,7 +36,7 @@ async def list_workers(
     request: Request,
     worker_id: str | None = None,
 ) -> PaginatedResponse[WorkerOut]:
-    ttl = request.app.state.config.workers.ttl_seconds
+    ttl = await settings_service.effective_worker_ttl(session, request.app.state.config)
     rows, total = await service.list_workers(session, params, ttl_seconds=ttl, worker_id=worker_id)
     return PaginatedResponse[WorkerOut](
         items=[WorkerOut.model_validate(r) for r in rows],

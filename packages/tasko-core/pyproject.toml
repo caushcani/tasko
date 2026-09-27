@@ -17,6 +17,7 @@ dependencies = [
     "websockets>=12",
     "croniter>=2.0",  # "next fire" estimate for cron schedules
     "httpx>=0.27",  # outbound webhook notifications for alerts
+    "aiosmtplib>=3.0",  # SMTP relay for alert emails + the settings test endpoint
 ]
 
 [project.optional-dependencies]

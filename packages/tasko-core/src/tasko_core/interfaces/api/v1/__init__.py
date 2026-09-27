@@ -6,6 +6,7 @@ from tasko_core.interfaces.api.v1 import websocket
 from tasko_core.modules.alerts import routes as alerts_routes
 from tasko_core.modules.queues import routes as queues_routes
 from tasko_core.modules.schedules import routes as schedules_routes
+from tasko_core.modules.settings import routes as settings_routes
 from tasko_core.modules.stats import routes as stats_routes
 from tasko_core.modules.tasks import routes as tasks_routes
 from tasko_core.modules.workers import routes as workers_routes
@@ -17,6 +18,7 @@ api_router.include_router(queues_routes.router)
 api_router.include_router(schedules_routes.router)
 api_router.include_router(stats_routes.router)
 api_router.include_router(alerts_routes.router)
+api_router.include_router(settings_routes.router)
 
 # WebSocket lives at /ws (no /api prefix).
 ws_router = websocket.router

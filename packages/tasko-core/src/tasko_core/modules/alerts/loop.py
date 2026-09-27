@@ -10,15 +10,19 @@ from fastapi import FastAPI
 
 from tasko_core.infrastructure.database import session_scope
 from tasko_core.modules.alerts.evaluator import run_cycle
+from tasko_core.modules.settings import service as settings_service
 
 logger = logging.getLogger("tasko.alerts")
 
 
 async def _loop(app: FastAPI) -> None:
-    interval = app.state.config.alerts.eval_interval_seconds
     while True:
+        interval = app.state.config.alerts.eval_interval_seconds
         try:
             async with session_scope() as session:
+                interval = await settings_service.effective_alert_eval_interval(
+                    session, app.state.config
+                )
                 await run_cycle(session, app.state.adapter)
         except asyncio.CancelledError:
             raise

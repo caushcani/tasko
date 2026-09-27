@@ -1,7 +1,8 @@
 """Fan a firing / resolved alert out to the configured notification channels.
 
-Phase 1 delivers webhooks only; email channels are recognised but skipped with
-a log line until the settings module lands the SMTP config. Delivery is
+Webhooks post a JSON payload directly. Email channels send through whatever
+SMTP relay is configured in Settings — looked up lazily, once per dispatch
+call, only if an email channel is actually targeted. Delivery is
 best-effort — a channel that errors never blocks the evaluation cycle.
 """
 
@@ -15,6 +16,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from tasko_core.modules.alerts.enums import ChannelType, Severity
 from tasko_core.modules.alerts.models import AlertEvent, AlertRule, NotificationChannel
+from tasko_core.modules.settings import service as settings_service
+from tasko_core.modules.settings import smtp
+from tasko_core.modules.settings.models import AppSettings
 
 logger = logging.getLogger("tasko.alerts")
 
@@ -51,6 +55,39 @@ async def _send_webhook(
     await client.post(url, json=payload, headers=cfg.get("headers") or {})
 
 
+def _email_body(rule: AlertRule, event: AlertEvent, *, resolved: bool) -> str:
+    state = "RESOLVED" if resolved else "FIRING"
+    lines = [
+        f"[{state}] {event.summary}",
+        "",
+        f"Rule: {rule.name}",
+        f"Severity: {rule.severity.value}",
+        f"Started: {event.started_at.isoformat()}",
+    ]
+    if event.resolved_at:
+        lines.append(f"Resolved: {event.resolved_at.isoformat()}")
+    return "\n".join(lines)
+
+
+async def _send_email(
+    settings: AppSettings,
+    channel: NotificationChannel,
+    rule: AlertRule,
+    event: AlertEvent,
+    *,
+    resolved: bool,
+) -> None:
+    to = (channel.config or {}).get("to") or []
+    if not to:
+        return
+    await smtp.send_email(
+        settings,
+        to=to,
+        subject=f"Tasko alert — {rule.name}",
+        body=_email_body(rule, event, resolved=resolved),
+    )
+
+
 async def dispatch(
     session: AsyncSession,
     rule: AlertRule,
@@ -73,6 +110,7 @@ async def dispatch(
         return
 
     payload = _payload(rule, event, resolved=resolved)
+    settings: AppSettings | None = None
     owns_client = client is None
     client = client or httpx.AsyncClient(timeout=5.0)
     try:
@@ -81,11 +119,9 @@ async def dispatch(
                 if channel.type is ChannelType.WEBHOOK:
                     await _send_webhook(client, channel, payload)
                 else:
-                    logger.info(
-                        "channel %s (%s) skipped — email delivery lands with the settings module",
-                        channel.name,
-                        channel.type.value,
-                    )
+                    if settings is None:
+                        settings = await settings_service.get_settings(session)
+                    await _send_email(settings, channel, rule, event, resolved=resolved)
             except Exception:
                 logger.warning("notification to channel %s failed", channel.name, exc_info=True)
     finally:

@@ -21,6 +21,8 @@ from tasko_core.modules.alerts.schemas import (
     NotificationChannelUpdate,
 )
 from tasko_core.modules.common.pagination import ListParamsDep, PaginatedResponse
+from tasko_core.modules.settings import service as settings_service
+from tasko_core.modules.settings import smtp
 
 router = APIRouter(tags=["alerts"], prefix="/alerts")
 
@@ -157,10 +159,22 @@ async def test_channel(channel_id: str, session: SessionDep) -> ChannelTestResul
     channel = await service.get_channel(session, channel_id)
     if channel is None:
         raise HTTPException(status_code=404, detail="channel not found")
-    if channel.type is not ChannelType.WEBHOOK:
-        return ChannelTestResult(
-            ok=False, detail=f"{channel.type.value} delivery isn't wired up yet"
-        )
+
+    if channel.type is ChannelType.EMAIL:
+        to = channel.config.get("to") or []
+        if not to:
+            return ChannelTestResult(ok=False, detail="channel has no recipients configured")
+        settings = await settings_service.get_settings(session)
+        try:
+            await smtp.send_email(
+                settings,
+                to=to,
+                subject="Tasko test notification",
+                body="This is a test notification from Tasko — this channel is reachable.",
+            )
+            return ChannelTestResult(ok=True, detail=f"sent to {', '.join(to)}")
+        except Exception as exc:
+            return ChannelTestResult(ok=False, detail=str(exc) or exc.__class__.__name__)
 
     payload = {
         "event": "test",

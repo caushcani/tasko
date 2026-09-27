@@ -35,6 +35,7 @@ export function titleFor(pathname: string): string {
   if (pathname === '/schedules') return 'Schedules'
   if (pathname.startsWith('/schedules/')) return 'Schedule detail'
   if (pathname.startsWith('/alerts')) return 'Alerts'
+  if (pathname.startsWith('/settings')) return 'Settings'
   return 'Tasko'
 }
 

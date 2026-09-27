@@ -61,10 +61,13 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
         <div className="sidebar-bottom">
-          <button className="nav-item" disabled aria-disabled="true" title="Not built yet">
+          <Link
+            href="/settings"
+            className={`nav-item ${pathname.startsWith('/settings') ? 'active' : ''}`}
+          >
             <Settings2 size={17} />
             <span>Settings</span>
-          </button>
+          </Link>
           <div className="user-row connection-row">
             <span className="conn-dot" />
             <div>

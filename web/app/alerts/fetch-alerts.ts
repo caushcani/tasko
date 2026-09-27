@@ -6,6 +6,7 @@ import type {
   AlertRuleInput,
   AlertRuleOut,
   ChannelTestResult,
+  ChannelType,
   NotificationChannelOut,
   Severity,
 } from './types'
@@ -69,7 +70,7 @@ export function fetchChannels(): Promise<NotificationChannelOut[]> {
 
 export function createChannel(body: {
   name: string
-  type: 'webhook'
+  type: ChannelType
   config: Record<string, unknown>
   min_severity: Severity
   enabled?: boolean

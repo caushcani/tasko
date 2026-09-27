@@ -34,6 +34,7 @@ async def create_all() -> None:
     # Import model modules so their tables are registered on Base.metadata.
     from tasko_core.modules.alerts import models as _alerts_models  # noqa: F401
     from tasko_core.modules.schedules import models as _schedules_models  # noqa: F401
+    from tasko_core.modules.settings import models as _settings_models  # noqa: F401
     from tasko_core.modules.tasks import models as _tasks_models  # noqa: F401
     from tasko_core.modules.workers import models as _workers_models  # noqa: F401
 

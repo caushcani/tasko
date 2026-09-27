@@ -341,6 +341,72 @@ async def test_alert_events_list_empty(client):
     assert body == {"items": [], "total_count": 0, "offset": 0, "limit": 15}
 
 
+async def test_alert_email_channel_test_without_smtp_configured(client):
+    created = await client.post(
+        "/api/alerts/channels",
+        json={
+            "name": "oncall",
+            "type": "email",
+            "config": {"to": ["oncall@example.com"]},
+        },
+    )
+    assert created.status_code == 201
+    cid = created.json()["id"]
+
+    # no SMTP relay configured yet -> ok=False, but the endpoint still 200s
+    result = await client.post(f"/api/alerts/channels/{cid}/test")
+    assert result.status_code == 200
+    assert result.json()["ok"] is False
+
+
+# --- settings ----------------------------------------------------------
+
+
+async def test_settings_get_defaults(client):
+    body = (await client.get("/api/settings")).json()
+    assert body["smtp_host"] is None
+    assert body["smtp_password_set"] is False
+    assert body["smtp_use_tls"] is True
+    assert body["worker_ttl_seconds"] is None
+    assert body["alert_eval_interval_seconds"] is None
+
+
+async def test_settings_patch_is_a_partial_update(client):
+    first = await client.patch("/api/settings", json={"smtp_host": "smtp.example.com"})
+    assert first.status_code == 200
+    assert first.json()["smtp_host"] == "smtp.example.com"
+
+    second = await client.patch("/api/settings", json={"smtp_port": 2525})
+    body = second.json()
+    assert body["smtp_host"] == "smtp.example.com"  # untouched
+    assert body["smtp_port"] == 2525
+
+
+async def test_settings_password_is_write_only(client):
+    patched = await client.patch("/api/settings", json={"smtp_password": "hunter2"})
+    assert patched.json()["smtp_password_set"] is True
+    assert "smtp_password" not in patched.json()
+
+    cleared = await client.patch("/api/settings", json={"smtp_password": ""})
+    assert cleared.json()["smtp_password_set"] is False
+
+
+async def test_settings_worker_ttl_override_is_read_by_workers_and_stats(client):
+    # a heartbeat just recorded is within any sane TTL, override or not
+    await client.post("/api/workers/heartbeat", json={"worker_id": "w1", "queues": ["default"]})
+    patched = await client.patch("/api/settings", json={"worker_ttl_seconds": 999_999})
+    assert patched.status_code == 200 and patched.json()["worker_ttl_seconds"] == 999_999
+
+    assert (await client.get("/api/workers")).json()["total_count"] == 1
+    assert (await client.get("/api/stats/overview")).json()["workers_online"] == 1
+
+
+async def test_smtp_test_without_a_relay_configured(client):
+    resp = await client.post("/api/settings/smtp/test", json={"to": "me@example.com"})
+    assert resp.status_code == 200
+    assert resp.json()["ok"] is False
+
+
 # --- task lineage --------------------------------------------------
 
 

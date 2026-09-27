@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Send, Trash2 } from 'lucide-react'
+import Link from 'next/link'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -20,7 +21,7 @@ import {
   testChannel,
   updateChannel,
 } from './fetch-alerts'
-import type { ChannelTestResult, Severity } from './types'
+import type { ChannelTestResult, ChannelType, Severity } from './types'
 
 export function ChannelsSection() {
   const qc = useQueryClient()
@@ -32,22 +33,31 @@ export function ChannelsSection() {
 
   const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
+  const [type, setType] = useState<ChannelType>('webhook')
   const [url, setUrl] = useState('')
+  const [to, setTo] = useState('')
   const [minSeverity, setMinSeverity] = useState<Severity>('warning')
   const [testResults, setTestResults] = useState<Record<string, ChannelTestResult>>({})
+
+  const destinationValid =
+    type === 'webhook' ? Boolean(url.trim()) : to.split(',').some((a) => a.trim())
 
   const addMut = useMutation({
     mutationFn: () =>
       createChannel({
         name: name.trim(),
-        type: 'webhook',
-        config: { url: url.trim() },
+        type,
+        config:
+          type === 'webhook'
+            ? { url: url.trim() }
+            : { to: to.split(',').map((a) => a.trim()).filter(Boolean) },
         min_severity: minSeverity,
       }),
     onSuccess: () => {
       setAdding(false)
       setName('')
       setUrl('')
+      setTo('')
       invalidate()
     },
   })
@@ -68,23 +78,46 @@ export function ChannelsSection() {
       <div className="panel-heading tasks-heading">
         <div>
           <h2>Notification channels</h2>
-          <p>Where firing and resolved alerts are sent (webhooks for now)</p>
+          <p>
+            Where firing and resolved alerts are sent — email channels need an{' '}
+            <Link href="/settings" className="underline">
+              SMTP relay configured
+            </Link>
+            .
+          </p>
         </div>
         {!adding && (
           <button className="outline-button small" onClick={() => setAdding(true)}>
-            <Plus size={14} /> Add webhook
+            <Plus size={14} /> Add channel
           </button>
         )}
       </div>
 
       {adding && (
-        <div className="grid gap-3 px-5 pb-4 md:grid-cols-[1fr_2fr_auto_auto]">
+        <div className="grid gap-3 px-5 pb-4 md:grid-cols-[1fr_auto_2fr_auto_auto]">
           <Input placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
-          <Input
-            placeholder="https://hooks.example.com/…"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-          />
+          <Select value={type} onValueChange={(v) => v && setType(v as ChannelType)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="webhook">Webhook</SelectItem>
+              <SelectItem value="email">Email</SelectItem>
+            </SelectContent>
+          </Select>
+          {type === 'webhook' ? (
+            <Input
+              placeholder="https://hooks.example.com/…"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+            />
+          ) : (
+            <Input
+              placeholder="oncall@example.com, backup@example.com"
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+            />
+          )}
           <Select value={minSeverity} onValueChange={(v) => v && setMinSeverity(v as Severity)}>
             <SelectTrigger>
               <SelectValue />
@@ -95,7 +128,7 @@ export function ChannelsSection() {
             </SelectContent>
           </Select>
           <div className="flex gap-2">
-            <Button onClick={() => addMut.mutate()} disabled={!name.trim() || !url.trim()}>
+            <Button onClick={() => addMut.mutate()} disabled={!name.trim() || !destinationValid}>
               Add
             </Button>
             <Button variant="ghost" onClick={() => setAdding(false)}>
@@ -128,7 +161,9 @@ export function ChannelsSection() {
                 <tr key={c.id}>
                   <td className="font-medium">{c.name}</td>
                   <td className="mono muted-cell max-w-[280px] truncate">
-                    {String(c.config.url ?? '')}
+                    {c.type === 'webhook'
+                      ? String(c.config.url ?? '')
+                      : (c.config.to as string[] | undefined)?.join(', ')}
                     {testResults[c.id] && (
                       <span
                         className="ml-2"
